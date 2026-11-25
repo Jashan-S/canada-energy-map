@@ -8,6 +8,13 @@ region:
   bbox: [-83.2, 41.6, -74.3, 46.0]
   h3_resolution: 8          # 8 ≈ 0.74 km² per hex (~170k hexes). 7 ≈ 5.2 km² (~25k).
 
+# Jurisdictions whose land is scored (ISO 3166-2, as in Natural Earth). Infrastructure
+# elsewhere in the download box (e.g. New York, Michigan, Quebec) is kept for display
+# (toggle in the map) but never counts toward scores. To expand, add a code here AND
+# provide that jurisdiction's land-constraint layers (the LIO layers are Ontario-only).
+jurisdictions:
+  score: [CA-ON]
+
 projection: "EPSG:3161"     # NAD83 / Ontario MNR Lambert — metres, used for all distances
 
 natural_earth:
@@ -46,9 +53,14 @@ lio:
     soil:                {service: LIO_Open05, name: "Soil Survey Complex", fields: "CLI1,CLI1_1,PERCENT1"}
     airport:             {service: LIO_Open05, name: "Airport Official"}
 
+# Building footprints (Microsoft Canadian Building Footprints, ODbL) -> coverage % per hex
+buildings:
+  url: https://minedbuildings.z5.web.core.windows.net/legacy/canadian-buildings-v2/Ontario.zip
+
 # Feature settings
 features:
   hv_kv: 115                # "transmission" threshold (kV)
+  dc_kv: 230                # bulk-supply threshold used by the data-centre profile
   load_radius_km: 5         # radius for industrial-land load proxy
   substation_hv_snap_m: 300 # substation counts as HV if a >=hv_kv line ends within this distance
   price_node_max_km: 60

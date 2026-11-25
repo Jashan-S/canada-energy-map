@@ -33,11 +33,15 @@ def main(argv=None) -> int:
     ensure_dirs()
 
     if "fetch" in steps:
-        from . import fetch_arcgis, fetch_base, fetch_osm
+        from . import fetch_arcgis, fetch_base, fetch_buildings, fetch_osm
 
         fetch_base.fetch_all(cfg, a.force)
         fetch_osm.fetch_all(cfg, a.force)
         failed = fetch_arcgis.fetch_all(cfg, a.force)
+        try:
+            fetch_buildings.fetch(cfg, a.force)
+        except Exception as e:  # degrade gracefully: map shows buildings as missing
+            log.error("buildings FAILED: %s", e)
         if failed:
             log.warning("continuing without LIO layers: %s", failed)
     if "build" in steps:

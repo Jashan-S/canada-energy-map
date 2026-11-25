@@ -1,7 +1,9 @@
 # Ontario Energy Siting Screener
 
-Map-based screening of Southern Ontario for **battery energy storage (BESS)** sites, built only from public data.
-Every ~0.74 km² hexagon (H3 resolution 8, ~160k cells) gets a 0–100 score from grid access, land suitability, nearby load and an optional price signal. Weights, exclusions and project size can all be changed live in the browser.
+Map-based screening of Southern Ontario for **battery energy storage (BESS)** and **data-centre** sites, built only from public data.
+Every ~0.74 km² hexagon (H3 resolution 8, ~160k cells) gets a 0–100 score from grid access, land suitability, nearby load or market, and an optional price signal. Weights, exclusions, building limits and project type can all be changed live in the browser.
+
+**Hexagon states:** coloured = at or above your score cutoff · faint = below the cutoff (still clickable) · grey = excluded (park, provincially significant wetland, specialty crop, reserve, too built up, or anything you've ticked under Exclude; hover to see why).
 
 > Screening only. Before acting on a site, confirm capacity with the utility (Hydro One Station Capacity Calculator / OEB Centralized Capacity Information Map), the land-use designation in the municipal Official Plan, and who owns the parcel.
 
@@ -36,9 +38,14 @@ python -m http.server -d web 8000 # open http://localhost:8000
 | Greenbelt, Greenbelt specialty crop, Oak Ridges Moraine, Niagara Escarpment Plan | LIO | Exclusions and penalties |
 | Soil Survey Complex (CLI class) | LIO | Proxy for prime agricultural land (CLI 1–3) |
 | Built-up area, airports, lower/single-tier municipalities | LIO | Penalties, municipality name |
+| Building footprints (~3.8M) | Microsoft Canadian Building Footprints (ODbL) | Building coverage % and count per hex: penalty, or exclusion above your limits |
 | Province outline and lakes | Natural Earth | Land mask |
 
 Layers are looked up by **name** on the LIO MapServers, so a renumbered layer won't break the build. If a download fails, the build continues and the map shows which layers are missing.
+
+## Jurisdictions
+
+`config.yaml → jurisdictions.score` lists the provinces/states whose land is scored (now `[CA-ON]`). OSM infrastructure is tagged with its ISO 3166-2 code. Anything outside the scored jurisdictions (New York, Michigan, Quebec…) is **never used in scores**; you can switch it on in the map with "Show infrastructure outside Ontario". To expand, add a code and supply that jurisdiction's land-constraint layers, because the LIO layers only cover Ontario.
 
 ## Your own inputs (`data/manual/`)
 
@@ -54,12 +61,14 @@ Push the changes and the workflow rebuilds the map.
 
 `score = Σ(weight × subscore) / Σweights × 100 × municipal stance factor`
 
-| Subscore | Distribution < 10 MW | Transmission 20 MW+ |
-|---|---|---|
-| Grid access | 0.65·e^(−d_substation/3 km) + 0.35·e^(−d_any_line/1 km) | 0.6·e^(−d_HV_station/5 km) + 0.4·e^(−d_≥115 kV line/2 km) |
-| Land | Product of (1 − penalty): CLI 1–3 0.25 · organic soil 0.5 · Greenbelt 0.35 · ORM/NEP 0.4 · other wetland 0.3 · built-up 0.15 · airport < 3 km 0.15 | same |
-| Load | log(1 + industrial ha within 5 km) / log(1501), capped at 1 | same |
-| Price | Min-max normalized node metric (0.5 if no node within range) | same |
+| Subscore | BESS distribution < 10 MW | BESS transmission 20 MW+ | Data centre |
+|---|---|---|---|
+| Grid access | 0.65·e^(−d_substation/3 km) + 0.35·e^(−d_any_line/1 km) | 0.6·e^(−d_≥115 kV station/5 km) + 0.4·e^(−d_≥115 kV line/2 km) | 0.6·e^(−d_≥230 kV station/6 km) + 0.4·e^(−d_≥230 kV line/3 km) |
+| Land | Product of (1 − penalty): CLI 1–3 0.25 · organic soil 0.5 · Greenbelt 0.35 · ORM/NEP 0.4 · other wetland 0.3 · built-up 0.3 · airport < 3 km 0.15 · building coverage above 5% up to 0.6 at your max | same | Same, but CLI 1–3 0.5 and Greenbelt 0.6 (needs employment-land rezoning) |
+| Load / market | log(1 + industrial ha within 5 km) / log(1501), capped at 1 | same | 0.7·e^(−km to downtown Toronto/60) + 0.3·industrial-land term |
+| Price | Min-max normalized node metric (0.5 if no node within range) | same | same |
+
+Building limits (defaults: 25% coverage, 150 buildings per hex) exclude dense urban and residential hexagons. A 20 MW / 4 h BESS needs roughly 0.5–1.5 ha, so a single farmhouse in a 74 ha hexagon isn't penalized.
 
 A substation counts as HV (≥ 115 kV) if it's tagged that way in OSM, or if a ≥ 115 kV line ends within 300 m of it.
 
@@ -72,6 +81,8 @@ Default hard exclusions: parks/protected areas, provincially significant wetland
 - **Prime agricultural areas** are designated by municipalities and aren't mapped province-wide. CLI class 1–3 is a proxy, and many Southwestern Ontario municipalities designate all rural land as prime.
 - **No parcel data**: the provincial parcel fabric is licensed (Teranet/MPAC). Use the hex location to look up parcels in GeoWarehouse or municipal open data.
 - Constraint tests use the **hex centre**, so a hex can straddle a boundary.
+- **Data centres**: the binding constraint is large-load connection capacity, which isn't published in bulk. Fibre routes and water aren't included either. Treat this profile as a first screen only.
+- **Building footprints** come from imagery of varying age, so recent construction may be missing.
 
 ## Roadmap
 

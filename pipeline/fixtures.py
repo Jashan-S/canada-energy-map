@@ -15,6 +15,7 @@ from . import common
 from .common import log
 
 rng = np.random.default_rng(7)
+US_CITIES = [(-78.88, 42.89), (-77.61, 43.16), (-83.05, 42.33)]   # Buffalo, Rochester, Detroit
 CITIES = [(-79.38, 43.65), (-79.87, 43.25), (-80.49, 43.45), (-81.25, 42.98), (-83.0, 42.3),
           (-75.70, 45.42), (-76.48, 44.23), (-78.32, 44.30), (-79.69, 44.39), (-82.40, 42.98)]
 
@@ -51,6 +52,10 @@ def make(cfg: dict) -> None:
             tags["voltage"] = kv
         els.append({"type": "way", "id": i, "tags": tags,
                     "geometry": [{"lon": a[0], "lat": a[1]}, {"lon": b[0], "lat": b[1]}]})
+    for i, (cx, cy) in enumerate(US_CITIES * 30):
+        a = (cx + rng.normal(0, 0.2), cy + rng.normal(0, 0.12))
+        els.append({"type": "way", "id": 900000 + i, "tags": {"power": "line", "voltage": "345000"},
+                    "geometry": [{"lon": a[0], "lat": a[1]}, {"lon": a[0] + 0.1, "lat": a[1] + 0.05}]})
     (raw / "osm_power_lines.json").write_text(json.dumps({"elements": els}))
 
     pts = []
@@ -61,6 +66,9 @@ def make(cfg: dict) -> None:
         if kv:
             t["voltage"] = kv
         pts.append({"type": "node", "id": i, "lat": y, "lon": x, "tags": t})
+    for i, (cx, cy) in enumerate(US_CITIES * 40):
+        pts.append({"type": "node", "id": 800000 + i, "lat": cy + rng.normal(0, 0.1), "lon": cx + rng.normal(0, 0.15),
+                    "tags": {"power": "substation", "name": f"US test sub {i}", "voltage": "345000;115000"}})
     for i in range(150):
         x, y = rpt(1.2)
         pts.append({"type": "way", "id": 10000 + i, "center": {"lat": y, "lon": x},
@@ -111,4 +119,21 @@ def make(cfg: dict) -> None:
             muni.append({"type": "Feature", "properties": {"MUNICIPAL_NAME_SHORTFORM": f"TEST TOWNSHIP {gx:.1f} {gy:.1f}"},
                          "geometry": mapping(box(gx, gy, gx + 0.4, gy + 0.4))})
     write("municipality", _fc(muni))
+    # building footprints: small squares, dense in cities, sparse elsewhere -> zip -> aggregate (tests the parser)
+    import zipfile
+    from . import fetch_buildings
+    feats = []
+    for i in range(120000):
+        if i % 4:
+            x, y = rpt(0.12)
+        else:
+            x, y = rng.uniform(x0, x1), rng.uniform(y0, y1)
+        d = 0.0001 + abs(rng.normal(0, 0.0002))
+        ring = [[x, y], [x + d, y], [x + d, y + d * 0.7], [x, y + d * 0.7], [x, y]]
+        feats.append(json.dumps({"type": "Feature", "properties": {}, "geometry": {"type": "Polygon", "coordinates": [ring]}}))
+    zp = raw / "buildings_ON.zip"
+    with zipfile.ZipFile(zp, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("Ontario.geojson", '{"type":"FeatureCollection","features":[\n' + ",\n".join(feats) + "\n]}\n")
+    res = cfg["region"]["h3_resolution"]
+    (raw / f"buildings_h3r{res}.json").write_text(json.dumps(fetch_buildings.aggregate(zp, res)))
     log.info("fixtures written to %s", raw)

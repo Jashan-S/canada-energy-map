@@ -98,12 +98,22 @@ def _join_attr(pts: gpd.GeoDataFrame, polys: gpd.GeoDataFrame, col: str) -> pd.S
 
 
 # ---------------------------------------------------------------- steps
-def land_mask(cfg: dict):
+def jurisdictions(cfg: dict) -> gpd.GeoDataFrame:
+    """Province/state polygons touching the download box, with ISO 3166-2 code + scored flag."""
     ne = cfg["natural_earth"]
     prov = gpd.read_file(_raw(f"{ne['provinces']}.geojson"))
-    on = prov[(prov["name"] == "Ontario") & (prov["admin"] == "Canada")]
+    region = box(*cfg["region"]["bbox"]).buffer(1.0)
+    j = prov[prov.intersects(region)][["iso_3166_2", "name", "geometry"]].rename(columns={"iso_3166_2": "j"})
+    j["scored"] = j.j.isin(cfg["jurisdictions"]["score"])
+    if not j.scored.any():
+        raise SystemExit(f"no Natural Earth polygon matches jurisdictions.score={cfg['jurisdictions']['score']}")
+    return j.reset_index(drop=True)
+
+
+def land_mask(cfg: dict, juris: gpd.GeoDataFrame):
+    ne = cfg["natural_earth"]
     region = box(*cfg["region"]["bbox"])
-    land = unary_union(on.geometry.values).intersection(region)
+    land = unary_union(juris[juris.scored].geometry.values).intersection(region)
     lakes = []
     for name in ne["lakes"]:
         lk = gpd.read_file(_raw(f"{name}.geojson"))
@@ -127,6 +137,19 @@ def hex_grid(land, res: int, proj: str) -> gpd.GeoDataFrame:
     return g, g.to_crs(proj)
 
 
+def tag_jurisdiction(gdf: gpd.GeoDataFrame, juris: gpd.GeoDataFrame, proj: str) -> gpd.GeoDataFrame:
+    """Add j (ISO code at the feature's midpoint) and scope (touches a scored jurisdiction, 1 km buffer)."""
+    if gdf.empty:
+        gdf["j"], gdf["scope"] = [], []
+        return gdf
+    mid = gdf.geometry.apply(lambda g: g.interpolate(0.5, normalized=True) if g.geom_type == "LineString" else g.representative_point())
+    pts = gpd.GeoDataFrame(geometry=mid, crs=WGS)
+    gdf["j"] = _join_attr(pts, juris, "j").fillna("").values
+    scored = gpd.GeoSeries([unary_union(juris[juris.scored].geometry.values)], crs=WGS).to_crs(proj).buffer(1000).to_crs(WGS).iloc[0]
+    gdf["scope"] = gdf.geometry.intersects(scored).values
+    return gdf
+
+
 def load_osm(cfg: dict):
     hv = cfg["features"]["hv_kv"]
     # lines
@@ -146,6 +169,7 @@ def load_osm(cfg: dict):
             }
         )
     lines = gpd.GeoDataFrame(lines, crs=WGS)
+    lines["kv230"] = lines["kv"] >= cfg["features"]["dc_kv"]
     # transmission if tagged >= hv, or tagged power=line with no voltage (OSM convention: 'line' = HV-ish)
     lines["hv"] = (lines["kv"] >= hv) | ((lines["power"] == "line") & lines["kv"].isna())
 
@@ -232,25 +256,40 @@ def build(cfg: dict) -> dict:
     fcfg = cfg["features"]
     missing = []
 
-    land = land_mask(cfg)
+    juris = jurisdictions(cfg)
+    land = land_mask(cfg, juris)
     hexw, hexp = hex_grid(land, res, proj)
     n = len(hexp)
 
-    # ---- grid
+    # ---- grid (only infrastructure in scored jurisdictions counts toward scores)
     lines, pts, ind = load_osm(cfg)
+    lines = tag_jurisdiction(lines, juris, proj)
+    pts = tag_jurisdiction(pts, juris, proj)
     lines_p, pts_p = lines.to_crs(proj), pts.to_crs(proj)
-    hv_lines = lines_p[lines_p.hv]
-    subs = pts_p[pts_p.kind == "substation"].copy()
-    plants = pts_p[pts_p.kind == "plant"].copy()
-    near_hv = _nearest_km(subs.geometry, hv_lines.geometry) * 1000
-    subs["hv"] = (subs.kv >= fcfg["hv_kv"]) | (near_hv <= fcfg["substation_hv_snap_m"])
-    log.info("substations: %d, inferred HV: %d", len(subs), int(subs.hv.sum()))
+    lines_s = lines_p[lines_p.scope]
+    hv_lines = lines_s[lines_s.hv]
+    l230 = lines_s[lines_s.kv230]
+    subs_all = pts_p[pts_p.kind == "substation"].copy()
+    near_hv = _nearest_km(subs_all.geometry, lines_p[lines_p.hv].geometry) * 1000
+    near_230 = _nearest_km(subs_all.geometry, lines_p[lines_p.kv230].geometry) * 1000
+    snap = fcfg["substation_hv_snap_m"]
+    subs_all["hv"] = (subs_all.kv >= fcfg["hv_kv"]) | (near_hv <= snap)
+    subs_all["kv230"] = (subs_all.kv >= fcfg["dc_kv"]) | (near_230 <= snap)
+    subs = subs_all[subs_all.scope]
+    plants = pts_p[(pts_p.kind == "plant") & pts_p.scope].copy()
+    ind = ind[_within(gpd.GeoDataFrame(geometry=gpd.points_from_xy(ind.lon, ind.lat), crs=WGS),
+                      juris[juris.scored])] if len(ind) else ind
+    log.info("in-scope: %d/%d lines, %d/%d substations (%d HV, %d >=%d kV), %d industrial",
+             len(lines_s), len(lines_p), len(subs), len(subs_all), int(subs.hv.sum()), int(subs.kv230.sum()),
+             fcfg["dc_kv"], len(ind))
 
     feat = pd.DataFrame({"h3": hexw.h3})
     feat["d_sub"] = _nearest_km(hexp.geometry, subs.geometry)
     feat["d_sub_hv"] = _nearest_km(hexp.geometry, subs[subs.hv].geometry)
     feat["d_line_hv"] = _nearest_km(hexp.geometry, hv_lines.geometry)
-    feat["d_line"] = _nearest_km(hexp.geometry, lines_p.geometry)
+    feat["d_line"] = _nearest_km(hexp.geometry, lines_s.geometry)
+    feat["d_sub_230"] = _nearest_km(hexp.geometry, subs[subs.kv230].geometry)
+    feat["d_line_230"] = _nearest_km(hexp.geometry, l230.geometry)
     feat["d_plant"] = _nearest_km(hexp.geometry, plants.geometry)
     feat["ind_ha"] = industrial_load(list(hexw.h3), ind, res, fcfg["load_radius_km"])
 
@@ -259,9 +298,29 @@ def build(cfg: dict) -> dict:
         hvs = subs[subs.hv].reset_index(drop=True)
         idx = STRtree(hvs.geometry.values).query_nearest(hexp.geometry.values, all_matches=False)[1]
         feat["sub_hv_idx"] = idx
+        k230 = np.flatnonzero(hvs.kv230.values)
+        if len(k230):
+            j = STRtree(hvs.geometry.values[k230]).query_nearest(hexp.geometry.values, all_matches=False)[1]
+            feat["sub_230_idx"] = k230[j]
+        else:
+            feat["sub_230_idx"] = -1
     else:
         hvs = subs.iloc[0:0]
         feat["sub_hv_idx"] = -1
+        feat["sub_230_idx"] = -1
+
+    # ---- buildings (coverage % of hex footprint, count)
+    bpath = common.RAW / f"buildings_h3r{res}.json"
+    if bpath.exists():
+        bl = json.loads(bpath.read_text())
+        area = np.array([h3.cell_area(c, "m^2") for c in feat.h3])
+        ba = np.array([bl.get(c, (0, 0))[0] for c in feat.h3], dtype=float)
+        feat["bldg_cov"] = np.minimum(100, ba / area * 100)
+        feat["bldg_n"] = [bl.get(c, (0, 0))[1] for c in feat.h3]
+    else:
+        missing.append("buildings")
+        feat["bldg_cov"] = np.nan
+        feat["bldg_n"] = -1
 
     # ---- land constraints
     flags = np.zeros(n, dtype=np.int32)
@@ -386,6 +445,10 @@ def build(cfg: dict) -> dict:
             "d_line": col("d_line"),
             "d_line_hv": col("d_line_hv"),
             "d_plant": col("d_plant"),
+            "d_sub_230": col("d_sub_230"),
+            "d_line_230": col("d_line_230"),
+            "bldg_cov": col("bldg_cov"),
+            "bldg_n": [int(x) for x in feat["bldg_n"]],
             "d_airport": col("d_airport"),
             "ind_ha": col("ind_ha", 0),
             "price": col("price", 2),
@@ -393,6 +456,7 @@ def build(cfg: dict) -> dict:
             "cli": [int(x) for x in feat.cli],
             "muni": [int(x) for x in feat.muni],
             "sub_hv": [int(x) for x in feat.sub_hv_idx],
+            "sub_230": [int(x) for x in feat.sub_230_idx],
             "need": [str(x) for x in need_label] if (need_label != "").any() else None,
         },
         "munis": munis,
@@ -402,15 +466,18 @@ def build(cfg: dict) -> dict:
         ],
     }
     write_json(common.WEB_DATA / "hexes.json", hexes)
-    _export_overlays(lines, pts, subs.to_crs(WGS))
+    _export_overlays(lines, pts, subs_all.to_crs(WGS))
 
     meta = {
         "built": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "region": cfg["region"],
+        "jurisdictions": cfg["jurisdictions"]["score"],
         "hex_count": n,
         "counts": {
-            "lines": int(len(lines)), "hv_lines": int(lines.hv.sum()), "substations": int(len(subs)),
-            "hv_substations": int(subs.hv.sum()), "plants": int(len(plants)), "industrial": int(len(ind)),
+            "lines": int(len(lines_s)), "hv_lines": int(len(hv_lines)), "substations": int(len(subs)),
+            "hv_substations": int(subs.hv.sum()), "kv230_substations": int(subs.kv230.sum()),
+            "plants": int(len(plants)), "industrial": int(len(ind)),
+            "outside_scope": {"lines": int((~lines.scope).sum()), "substations": int((~subs_all.scope).sum())},
         },
         "missing_layers": sorted(set(missing)),
         "price": price_meta,
@@ -451,10 +518,10 @@ def _export_overlays(lines, pts, subs):
     tl = lines[lines.hv | (lines.kv >= 27)].copy()   # skip low-voltage clutter
     tl["geometry"] = tl.geometry.simplify(0.0002)
     tl = tl.round({"kv": 0})
-    write_json(common.WEB_DATA / "lines.geojson", _round_coords(fc(tl, ["kv", "name", "operator", "hv"])))
-    write_json(common.WEB_DATA / "substations.geojson", _round_coords(fc(subs, ["name", "kv", "operator", "hv"])))
+    write_json(common.WEB_DATA / "lines.geojson", _round_coords(fc(tl, ["kv", "name", "operator", "hv", "j", "scope"])))
+    write_json(common.WEB_DATA / "substations.geojson", _round_coords(fc(subs, ["name", "kv", "operator", "hv", "j", "scope"])))
     pl = pts[pts.kind == "plant"]
-    write_json(common.WEB_DATA / "plants.geojson", _round_coords(fc(pl, ["name", "source", "mw", "operator"])))
+    write_json(common.WEB_DATA / "plants.geojson", _round_coords(fc(pl, ["name", "source", "mw", "operator", "j", "scope"])))
 
 
 def _round_coords(fc_obj, nd=5):
