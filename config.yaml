@@ -1,0 +1,60 @@
+# Ontario energy siting screener — pipeline configuration
+# All sources are public. Edit here, not in code.
+
+region:
+  name: Southern Ontario
+  # lon_min, lat_min, lon_max, lat_max (WGS84). North edge ~46.0 = roughly
+  # Parry Sound / Mattawa; raise to 46.4 to pull in North Bay / Sudbury edge.
+  bbox: [-83.2, 41.6, -74.3, 46.0]
+  h3_resolution: 8          # 8 ≈ 0.74 km² per hex (~170k hexes). 7 ≈ 5.2 km² (~25k).
+
+projection: "EPSG:3161"     # NAD83 / Ontario MNR Lambert — metres, used for all distances
+
+natural_earth:
+  base_url: https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson
+  provinces: ne_10m_admin_1_states_provinces
+  lakes: [ne_10m_lakes, ne_10m_lakes_north_america]
+
+osm:
+  endpoints:
+    - https://overpass-api.de/api/interpreter
+    - https://overpass.kumi.systems/api/interpreter
+    - https://overpass.private.coffee/api/interpreter
+  timeout_s: 900
+
+# Ontario GeoHub / Land Information Ontario open MapServer services.
+# Layers are resolved by NAME at run time, so a renumbered layer id won't break the build.
+lio:
+  base_url: https://ws.lioservices.lrc.gov.on.ca/arcgis2/rest/services/LIO_OPEN_DATA
+  generalize_deg: 0.0004    # ~40 m geometry simplification on download
+  chunk: 1000              # server max is 2000
+  layers:
+    provincial_park:     {service: LIO_Open03, name: "Provincial Park Regulated"}
+    conservation_reserve: {service: LIO_Open03, name: "Conservation Reserve Regulated"}
+    national_wildlife:   {service: LIO_Open03, name: "National Wildlife Area"}
+    federal_protected:   {service: LIO_Open03, name: "Federal Protected Area"}
+    first_nation_reserve: {service: LIO_Open03, name: "Indian Reserve"}
+    municipality:        {service: LIO_Open03, name: "Municipal Bnd Lower And Single"}
+    wetland:             {service: LIO_Open01, name: "Wetland With Significance",
+                          where: "WETLAND_SIGNIFICANCE IS NOT NULL",   # evaluated wetlands only
+                          fields: "WETLAND_SIGNIFICANCE,EVALUATED_WETLAND_NAME"}
+    built_up:            {service: LIO_Open01, name: "Built Up Area"}
+    greenbelt:           {service: LIO_Open06, name: "Greenbelt Outer Boundary"}
+    specialty_crop:      {service: LIO_Open06, name: "Greenbelt Specialty Crop"}
+    oak_ridges_moraine:  {service: LIO_Open06, name: "ORM Planning Area"}
+    niagara_escarpment:  {service: LIO_Open06, name: "Niagara Escarpment Plan Boundary"}
+    soil:                {service: LIO_Open05, name: "Soil Survey Complex", fields: "CLI1,CLI1_1,PERCENT1"}
+    airport:             {service: LIO_Open05, name: "Airport Official"}
+
+# Feature settings
+features:
+  hv_kv: 115                # "transmission" threshold (kV)
+  load_radius_km: 5         # radius for industrial-land load proxy
+  substation_hv_snap_m: 300 # substation counts as HV if a >=hv_kv line ends within this distance
+  price_node_max_km: 60
+
+# Optional hand-maintained inputs in data/manual/ (templates provided)
+manual:
+  price_nodes: data/manual/price_nodes.csv
+  municipal_stance: data/manual/municipal_stance.csv
+  grid_needs: data/manual/grid_needs.geojson

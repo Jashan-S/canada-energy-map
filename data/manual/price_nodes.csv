@@ -1,0 +1,4 @@
+# Optional. One row per pricing node; "metric" = any BESS value signal you choose,
+# e.g. avg daily (max-min) real-time LMP spread in $/MWh from your MRP LMP analysis.
+# Hexes take the nearest node's value (within features.price_node_max_km).
+name,lat,lon,metric

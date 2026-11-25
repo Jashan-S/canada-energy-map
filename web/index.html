@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ontario Energy Siting Screener</title>
+<link rel="stylesheet" href="vendor/maplibre-gl.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="map"></div>
+
+<aside id="panel" class="open">
+  <button id="sheet-toggle" aria-label="Toggle controls"><span></span></button>
+  <header>
+    <h1>Ontario Energy Siting</h1>
+    <p class="sub">BESS screening · Southern Ontario · public data</p>
+  </header>
+  <div id="banner" hidden></div>
+
+  <section>
+    <h2>Project size</h2>
+    <div class="seg" id="profile">
+      <button data-p="dist" class="on">Distribution<small>&lt; 10 MW</small></button>
+      <button data-p="tx">Transmission<small>20 MW +</small></button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Weights</h2>
+    <label class="slider">Grid access <input type="range" min="0" max="100" value="50" data-w="grid"><output></output></label>
+    <label class="slider">Land suitability <input type="range" min="0" max="100" value="25" data-w="land"><output></output></label>
+    <label class="slider">Load nearby <input type="range" min="0" max="100" value="15" data-w="load"><output></output></label>
+    <label class="slider" id="price-row">Price signal <input type="range" min="0" max="100" value="10" data-w="price"><output></output></label>
+  </section>
+
+  <section>
+    <h2>Exclude</h2>
+    <div class="checks" id="excl">
+      <label><input type="checkbox" data-x="PROTECTED" checked> Parks &amp; protected areas</label>
+      <label><input type="checkbox" data-x="PSW" checked> Provincially significant wetlands</label>
+      <label><input type="checkbox" data-x="SPECIALTY" checked> Specialty crop areas</label>
+      <label><input type="checkbox" data-x="RESERVE" checked> First Nation reserves</label>
+      <label><input type="checkbox" data-x="GREENBELT"> Greenbelt</label>
+      <label><input type="checkbox" data-x="BUILTUP"> Built-up areas</label>
+      <label><input type="checkbox" data-x="OPPOSED"> Municipalities marked opposed</label>
+    </div>
+    <label class="slider">Hide scores below <input type="range" id="minscore" min="0" max="90" value="40"><output></output></label>
+  </section>
+
+  <section>
+    <h2>Layers</h2>
+    <div class="checks" id="layers">
+      <label><input type="checkbox" data-l="hex" checked> Site scores</label>
+      <label><input type="checkbox" data-l="lines" checked> Transmission lines</label>
+      <label><input type="checkbox" data-l="subs" checked> Substations</label>
+      <label><input type="checkbox" data-l="plants"> Generating stations</label>
+    </div>
+    <div class="legend">
+      <div class="ramp"></div><div class="ramp-l"><span id="leg-min">40</span><span>100</span></div>
+      <div class="kv"><i style="background:#b42318"></i>500 kV <i style="background:#e8710a"></i>230 kV <i style="background:#2b6cb0"></i>115 kV <i style="background:#8a8f98"></i>&lt;115</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Top sites <button id="csv" class="link">Export CSV</button></h2>
+    <ol id="top"></ol>
+  </section>
+
+  <footer id="meta"></footer>
+</aside>
+
+<div id="detail" hidden></div>
+<div id="loading">Loading data…</div>
+
+<script src="vendor/maplibre-gl.js"></script>
+<script src="vendor/h3-js.umd.js"></script>
+<script src="vendor/deck.gl.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

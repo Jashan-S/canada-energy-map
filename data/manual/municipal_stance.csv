@@ -1,0 +1,3 @@
+# Optional. Council stance on hosting energy projects (e.g. from LT2/LLT support resolutions or moratoria).
+# stance: supportive | neutral | opposed   (name must match the map's municipality name, case-insensitive)
+municipality,stance,note
