@@ -470,7 +470,9 @@ def build(cfg: dict) -> dict:
         mp = muni[[col, "geometry"]].copy()
         mp["core"] = mp[col].astype(str).map(_muni_core)
         for core, g in mp.groupby("core"):
-            muni_pts[core] = unary_union(g.geometry.values).representative_point()
+            geom = unary_union(g.geometry.values)
+            on_land = geom.intersection(land)          # municipal limits extend into the lakes
+            muni_pts[core] = (on_land if not on_land.is_empty else geom).representative_point()
         _export_projects(ROOT / cfg["manual"]["bess_projects"], muni_pts)
 
     # price signal: hand-made node file if it has rows, else IESO day-ahead 4-h spreads located by station name
