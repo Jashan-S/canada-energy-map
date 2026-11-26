@@ -39,6 +39,7 @@ python -m http.server -d web 8000 # open http://localhost:8000
 | Soil Survey Complex (CLI class) | LIO | Proxy for prime agricultural land (CLI 1–3) |
 | Built-up area, airports, lower/single-tier municipalities | LIO | Penalties, municipality name |
 | Station generation room | Hydro One **List of Station Capacity** (PDF, Nov 2025 edition committed in `data/manual/`; the build tries to fetch a newer one) | Best-bus and station MW free for new distribution-connected generation, plus TC (transmission-constrained) flags. Matched to OSM substations by name; the match list is in `web/data/capacity_matches.csv`. |
+| Nodal prices | IESO public `PUB_DAHourlyEnergyLMP` reports, trailing 60 days | Average daily 4-hour arbitrage spread per station (mean of the top 4 hourly LMPs minus the bottom 4), from the median of a station's nodes. Located by matching the node prefix (e.g. `CHERRYWOOD-…`) to OSM station or plant names; matches are in `web/data/price_nodes.csv`. A non-empty `data/manual/price_nodes.csv` overrides this. |
 | Building footprints (~3.8M) | Microsoft Canadian Building Footprints (ODbL) | Building coverage % and count per hex: penalty, or exclusion above your limits |
 | Province outline and lakes | Natural Earth | Land mask |
 

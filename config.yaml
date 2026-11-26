@@ -71,6 +71,10 @@ capacity:
   thresholds_mw: [2, 5, 10]   # precomputed "distance to a station with >= X MW free" layers
   near_km: 15                 # nearest listed station shown in the detail panel within this distance
 
+# IESO day-ahead nodal prices -> 4-hour arbitrage spread per station (BESS value signal)
+prices:
+  days: 60                    # trailing window of PUB_DAHourlyEnergyLMP files
+
 # Feature settings
 features:
   hv_kv: 115                # "transmission" threshold (kV)

@@ -107,3 +107,4 @@ button.link { border: 0; background: none; color: var(--accent); font: inherit; 
 .mini { margin: 8px 0 4px; font-size: 11.5px; color: var(--muted); }
 #size button { padding: 5px 4px; font-weight: 600; }
 .leg-src { white-space: normal !important; font-size: 11px; }
+.sub-note { font-size: 11px; color: var(--muted); margin-top: 2px; }

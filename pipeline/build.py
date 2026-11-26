@@ -20,7 +20,7 @@ from shapely import STRtree
 from shapely.geometry import LineString, Point, box, mapping
 from shapely.ops import unary_union
 
-from . import capacity, common
+from . import capacity, common, prices
 from .common import ROOT, log, write_json
 
 WGS = "EPSG:4326"
@@ -460,21 +460,34 @@ def build(cfg: dict) -> dict:
         stance = _read_stance(ROOT / cfg["manual"]["municipal_stance"])
         munis = [{"name": nm, "stance": stance.get(nm.lower(), "")} for nm in uniq]
 
-    # optional price metric from nodes (e.g. your LMP spread analysis)
+    # price signal: hand-made node file if it has rows, else IESO day-ahead 4-h spreads located by station name
     feat["price"] = np.nan
+    feat["pnode"] = -1
+    price_meta, pn = None, pd.DataFrame()
     pn_path = ROOT / cfg["manual"]["price_nodes"]
-    price_meta = None
+    label = "metric"
     if pn_path.exists():
         pn = pd.read_csv(pn_path, comment="#")
+        label = "your price_nodes.csv metric"
+    if not len(pn):
+        st = prices.station_spreads(cfg)
+        places = pd.concat([
+            subs_all[subs_all.scope].to_crs(WGS).assign(lat=lambda g: g.geometry.y, lon=lambda g: g.geometry.x)[["name", "lat", "lon", "kv"]],
+            pts[(pts.kind == "plant") & pts.scope].assign(lat=lambda g: g.geometry.y, lon=lambda g: g.geometry.x)[["name", "lat", "lon", "kv"]],
+        ], ignore_index=True)
+        pn = prices.locate(st, places)
         if len(pn):
-            pg = gpd.GeoDataFrame(pn, geometry=gpd.points_from_xy(pn.lon, pn.lat), crs=WGS).to_crs(proj)
-            tree = STRtree(pg.geometry.values)
-            i, d = tree.query_nearest(hexp.geometry.values, return_distance=True, all_matches=False)
-            vals = pg["metric"].values[i[1]]
-            vals = np.where(d / 1000 <= fcfg["price_node_max_km"], vals, np.nan)
-            feat["price"] = vals
-            price_meta = {"nodes": int(len(pn)), "min": float(np.nanmin(pn.metric)), "max": float(np.nanmax(pn.metric)),
-                          "label": str(pn.columns[pn.columns.get_loc("metric")])}
+            label = f"avg daily 4-h day-ahead spread, $/MWh ({int(st.days.max())} days)"
+            pn.to_csv(common.WEB_DATA / "price_nodes.csv", index=False)
+    if len(pn):
+        pg = gpd.GeoDataFrame(pn, geometry=gpd.points_from_xy(pn.lon, pn.lat), crs=WGS).to_crs(proj)
+        i, d = STRtree(pg.geometry.values).query_nearest(hexp.geometry.values, return_distance=True, all_matches=False)
+        near = d / 1000 <= fcfg["price_node_max_km"]
+        feat["price"] = np.where(near, pg["metric"].values[i[1]], np.nan)
+        feat["pnode"] = np.where(near, i[1], -1)
+        price_meta = {"nodes": int(len(pn)), "min": float(np.nanpercentile(pn.metric, 5)),
+                      "max": float(np.nanpercentile(pn.metric, 95)), "label": label,
+                      "node_names": [str(x) for x in pn["name"]]}
 
     # ---- export
     def col(name, nd=1):
@@ -502,6 +515,7 @@ def build(cfg: dict) -> dict:
             "sub_230": [int(x) for x in feat.sub_230_idx],
             "need": [str(x) for x in need_label] if (need_label != "").any() else None,
             "cap": [int(x) for x in feat.cap_idx],
+            "pnode": [int(x) for x in feat.pnode],
             **{f"d_cap{t}": col(f"d_cap{t}") for t in ccfg.get("thresholds_mw", [])},
     }
     common_lists = {

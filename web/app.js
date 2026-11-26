@@ -219,7 +219,7 @@
         <tr><td>Grid access${bar(sub[i * 4])}</td><td>${(sub[i * 4] * 100).toFixed(0)}</td></tr>
         <tr><td>Land suitability${bar(sub[i * 4 + 1])}</td><td>${(sub[i * 4 + 1] * 100).toFixed(0)}</td></tr>
         <tr><td>${P.loadLabel}${bar(sub[i * 4 + 2])}</td><td>${(sub[i * 4 + 2] * 100).toFixed(0)}</td></tr>
-        ${meta.price ? `<tr><td>Price signal${bar(sub[i * 4 + 3])}</td><td>${c.price[i] ?? "—"}</td></tr>` : ""}
+        ${meta.price ? `<tr><td>Price signal${bar(sub[i * 4 + 3])}<div class="sub-note">${esc(meta.price.label)}${c.pnode && c.pnode[i] >= 0 && meta.price.node_names ? " · node " + esc(meta.price.node_names[c.pnode[i]]) : ""}</div></td><td>${c.price[i] != null ? "$" + c.price[i] : "none within " + 60 + " km"}</td></tr>` : ""}
       </table>
       <table>
         <tr><td>Nearest ≥115 kV station</td><td>${stn(hvs)}</td></tr>

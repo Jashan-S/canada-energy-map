@@ -20,7 +20,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false   # queue new builds; never kill a long data download mid-way
 
 jobs:
   build:

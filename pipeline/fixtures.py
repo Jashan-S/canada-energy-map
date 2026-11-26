@@ -139,4 +139,8 @@ def make(cfg: dict) -> None:
         z.writestr("Ontario.geojson", '{"type":"FeatureCollection","features":[\n' + ",\n".join(feats) + "\n]}\n")
     res = cfg["region"]["h3_resolution"]
     (raw / f"buildings_h3r{res}.json").write_text(json.dumps(fetch_buildings.aggregate(zp, res)))
+    sample = common.ROOT / "data" / "samples" / "PUB_DAHourlyEnergyLMP_20261127.csv"
+    if sample.exists():
+        (raw / "da_lmp").mkdir(exist_ok=True)
+        shutil.copy(sample, raw / "da_lmp" / "20261127.csv")
     log.info("fixtures written to %s", raw)
