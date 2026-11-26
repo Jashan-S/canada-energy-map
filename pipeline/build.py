@@ -447,6 +447,7 @@ def build(cfg: dict) -> dict:
     if muni is None:
         missing.append("municipality")
         feat["muni"] = -1
+        _export_projects(ROOT / cfg["manual"]["bess_projects"], {})
     else:
         col = _pick_col(
             muni,
@@ -458,7 +459,19 @@ def build(cfg: dict) -> dict:
         lut = {nm: i for i, nm in enumerate(uniq)}
         feat["muni"] = names.map(lambda x: lut.get(x, -1)).values
         stance = _read_stance(ROOT / cfg["manual"]["municipal_stance"])
-        munis = [{"name": nm, "stance": stance.get(nm.lower(), "")} for nm in uniq]
+        munis = []
+        for nm in uniq:
+            st = stance.get(_muni_core(nm), {})
+            munis.append({"name": nm, "stance": st.get("stance", ""), "note": st.get("note", ""), "src": st.get("source", "")})
+        matched = {m["name"] for m in munis if m["stance"]}
+        log.info("stance: %d of %d listed municipalities matched", len(matched), len(stance))
+        # battery projects layer (placed at their coordinates, else the municipality centre)
+        muni_pts = {}
+        mp = muni[[col, "geometry"]].copy()
+        mp["core"] = mp[col].astype(str).map(_muni_core)
+        for core, g in mp.groupby("core"):
+            muni_pts[core] = unary_union(g.geometry.values).representative_point()
+        _export_projects(ROOT / cfg["manual"]["bess_projects"], muni_pts)
 
     # price signal: hand-made node file if it has rows, else IESO day-ahead 4-h spreads located by station name
     feat["price"] = np.nan
@@ -585,14 +598,47 @@ def _capacity_report(cap_sites: pd.DataFrame, subs: gpd.GeoDataFrame) -> None:
                 w.writerow([r.site, r.best_mw, r.total_mw, r.tc, "", "", ""])
 
 
+_MUNI_WORDS = r"\b(the|corporation|of|city|town|township|municipality|county|village|united|counties|separated|region|regional|district)\b"
+
+
+def _muni_core(name: str) -> str:
+    """'Township of Edwardsburgh/Cardinal' and 'EDWARDSBURGH CARDINAL' -> 'edwardsburghcardinal'."""
+    s = re.sub(_MUNI_WORDS, " ", str(name).lower())
+    return re.sub(r"[^a-z]", "", s)
+
+
 def _read_stance(path: Path) -> dict:
     out = {}
     if path.exists():
         with open(path) as f:
             for row in csv.DictReader(r for r in f if not r.startswith("#")):
                 if row.get("municipality"):
-                    out[row["municipality"].strip().lower()] = (row.get("stance") or "").strip().lower()
+                    row["stance"] = (row.get("stance") or "").strip().lower()
+                    out[_muni_core(row["municipality"])] = row
     return out
+
+
+def _export_projects(path: Path, muni_pts: dict) -> None:
+    feats, unplaced = [], []
+    if path.exists():
+        with open(path) as f:
+            for k, r in enumerate(csv.DictReader(l for l in f if not l.startswith("#"))):
+                if r.get("lat") and r.get("lon"):
+                    lon, lat, approx = float(r["lon"]), float(r["lat"]), True
+                else:
+                    p = muni_pts.get(_muni_core(r["municipality"]))
+                    if p is None:
+                        unplaced.append(r["name"])
+                        continue
+                    # small spiral offset so projects in one municipality don't stack
+                    ang = k * 2.4
+                    lon, lat, approx = p.x + 0.03 * np.cos(ang), p.y + 0.02 * np.sin(ang), True
+                feats.append({"type": "Feature", "geometry": {"type": "Point", "coordinates": [round(lon, 5), round(lat, 5)]},
+                              "properties": {"name": r["name"], "mw": float(r["mw"]), "mwh": float(r["mwh"]) if r.get("mwh") else None,
+                                             "status": r["status"], "program": r["program"], "municipality": r["municipality"],
+                                             "approx": approx, "source": r["source"]}})
+    write_json(common.WEB_DATA / "bess_projects.geojson", {"type": "FeatureCollection", "features": feats})
+    log.info("projects: %d placed, unplaced: %s", len(feats), unplaced)
 
 
 def _export_overlays(lines, pts, subs):

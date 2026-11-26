@@ -48,7 +48,7 @@
     w: { grid: 50, land: 25, load: 15, price: 10 },
     excl: new Set(["PROTECTED", "PSW", "SPECIALTY", "RESERVE"]),
     minScore: 40, maxCov: 25, maxBldg: 150, sizeMW: 5,
-    layers: { hex: true, faint: true, excluded: true, lines: true, subs: true, plants: false, outside: false, capcolor: true },
+    layers: { hex: true, faint: true, excluded: true, lines: true, subs: true, plants: false, outside: false, capcolor: true, projects: true, stanceview: false },
   };
 
   let D, N, score, sub, hstate, reason, shown, ranked, overlay, map, meta, selected = -1, centers, dTor;
@@ -132,8 +132,14 @@
   function km(a, b, c, d) { const x = (d - b) * 111.32 * Math.cos(((a + c) / 2) * Math.PI / 180), y = (c - a) * 110.57; return Math.hypot(x, y); }
 
   // ------------------------------------------------------------ rendering
+  const STANCE_RGB = { supportive: [18, 183, 106], mixed: [247, 144, 9], opposed: [217, 45, 32] };
   function fill(i) {
     if (i === selected) return [20, 20, 20, 230];
+    if (state.layers.stanceview) {
+      const m = D.cols.muni[i] >= 0 ? D.munis[D.cols.muni[i]] : null;
+      const c = m && STANCE_RGB[m.stance];
+      return c ? [...c, 150] : [180, 184, 190, 40];
+    }
     const st = hstate[i];
     if (st === S_EXCL) return GREY;
     if (st === S_FAINT) return rampColor(score[i], 55);
@@ -151,7 +157,7 @@
     const common = {
       id, data, pickable: true,
       getFillColor: fill,
-      updateTriggers: { getFillColor: [score, selected, shown.length, state.minScore] },
+      updateTriggers: { getFillColor: [score, selected, shown.length, state.minScore, state.layers.stanceview] },
       onClick: (info) => { if (info.object != null && hstate[info.object] !== S_EXCL) showDetail(info.object); },
       beforeId: "lines-other",
     };
@@ -206,7 +212,7 @@
     if (c.bldg_cov && c.bldg_cov[i] != null && c.bldg_cov[i] > BLDG_FREE_PCT) tags.push(`<span>${c.bldg_cov[i]}% covered by buildings</span>`);
     const cs = c.cap && c.cap[i] >= 0 ? D.cap_subs[c.cap[i]] : null;
     if (cs && cs.tc) tags.push(`<span class="bad">Transmission-constrained area (Hydro One TC)</span>`);
-    if (muni && muni.stance) tags.push(`<span class="${muni.stance === "opposed" ? "bad" : muni.stance === "supportive" ? "good" : ""}">Council: ${esc(muni.stance)}</span>`);
+    if (muni && muni.stance) tags.push(`<span class="${muni.stance === "opposed" ? "bad" : muni.stance === "supportive" ? "good" : ""}" title="${esc(muni.note || "")}">Council: ${esc(muni.stance)}</span>`);
     const bar = (v) => `<div class="bar"><i style="width:${(v * 100).toFixed(0)}%"></i></div>`;
     const f = (v, u = " km") => (v == null || v < 0 ? "—" : v + u);
     const stn = (x) => (x ? esc(x.name) + (x.kv ? " · " + x.kv + " kV" : "") : "—");
@@ -237,6 +243,7 @@
         <tr><td>Nearest airport</td><td>${f(c.d_airport[i])}</td></tr>
         <tr><td>Hex centre</td><td>${la.toFixed(4)}, ${lo.toFixed(4)}</td></tr>
       </table>
+      ${muni && muni.stance ? `<p class="note"><b>Council (${esc(muni.stance)}):</b> ${esc(muni.note || "")} ${muni.src ? `<a target="_blank" rel="noopener" href="${esc(muni.src)}">source</a>` : ""}</p>` : ""}
       <div class="links">
         <a target="_blank" rel="noopener" href="https://www.google.com/maps/@${la},${lo},1500m/data=!3m1!1e3">Satellite view</a>
         <a target="_blank" rel="noopener" href="https://www.hydroone.com/business-services/generators/generation-capacity-map">Hydro One capacity map</a>
@@ -270,6 +277,7 @@
     map.addSource("lines", { type: "geojson", data: "data/lines.geojson" });
     map.addSource("subs", { type: "geojson", data: "data/substations.geojson" });
     map.addSource("plants", { type: "geojson", data: "data/plants.geojson" });
+    map.addSource("projects", { type: "geojson", data: "data/bess_projects.geojson" });
     const kv = ["coalesce", ["get", "kv"], 0];
     map.addLayer({ id: "lines-other", type: "line", source: "lines", filter: ["<", kv, 115],
       paint: { "line-color": "#8a8f98", "line-width": ["interpolate", ["linear"], ["zoom"], 6, 0.4, 12, 1.5] } });
@@ -285,6 +293,19 @@
     map.addLayer({ id: "plants", type: "circle", source: "plants", layout: { visibility: "none" },
       paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 3, 12, 7], "circle-color": pc,
         "circle-stroke-color": "#fff", "circle-stroke-width": 1.2 } });
+    map.addLayer({ id: "projects", type: "circle", source: "projects",
+      paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, ["+", 3, ["*", 0.5, ["sqrt", ["get", "mw"]]]], 11, ["+", 6, ["sqrt", ["get", "mw"]]]],
+        "circle-color": ["match", ["get", "status"], "operating", "#6941c6", "#ffffff"], "circle-opacity": 0.9,
+        "circle-stroke-color": "#6941c6", "circle-stroke-width": 2 } });
+    map.on("click", "projects", (e) => {
+      const p = e.features[0].properties;
+      const mwh = p.mwh && p.mwh !== "null" ? ` / ${p.mwh} MWh` : "";
+      new maplibregl.Popup({ closeButton: false, maxWidth: "280px" }).setLngLat(e.lngLat).setHTML(
+        `<b>${esc(p.name)}</b><br>${p.mw} MW${mwh} · ${esc(p.status)}<br>${esc(p.program)} · ${esc(p.municipality)}` +
+        `${p.approx === true || p.approx === "true" ? "<br><i>Location approximate</i>" : ""}<br><a target="_blank" rel="noopener" href="${esc(p.source)}">source</a>`).addTo(map);
+    });
+    map.on("mouseenter", "projects", () => (map.getCanvas().style.cursor = "pointer"));
+    map.on("mouseleave", "projects", () => (map.getCanvas().style.cursor = ""));
     for (const id of ["subs", "plants"]) {
       map.on("click", id, (e) => {
         const p = e.features[0].properties;
@@ -304,7 +325,7 @@
   function setLayerVis() {
     const v = (on) => (on ? "visible" : "none");
     if (!map.getLayer("lines-hv")) return;
-    for (const [id, on] of [["lines-hv", state.layers.lines], ["lines-other", state.layers.lines], ["subs", state.layers.subs], ["plants", state.layers.plants]])
+    for (const [id, on] of [["lines-hv", state.layers.lines], ["lines-other", state.layers.lines], ["subs", state.layers.subs], ["plants", state.layers.plants], ["projects", state.layers.projects]])
       map.setLayoutProperty(id, "visibility", v(on));
     // infrastructure outside the scored jurisdiction(s)
     const scope = state.layers.outside ? null : ["==", ["get", "scope"], true];
@@ -352,7 +373,7 @@
     }));
     document.querySelectorAll("#layers input").forEach((cb) => (cb.onchange = () => {
       state.layers[cb.dataset.l] = cb.checked; setLayerVis();
-      if (["hex", "faint", "excluded"].includes(cb.dataset.l)) update(); else render();
+      if (["hex", "faint", "excluded", "stanceview"].includes(cb.dataset.l)) update(); else render();
     }));
     $("#sheet-toggle").onclick = () => $("#panel").classList.toggle("open");
     if (!meta.price) { const r = $("#price-row"); r.classList.add("disabled"); r.querySelector("input").disabled = true; r.title = "Add data/manual/price_nodes.csv to enable"; }

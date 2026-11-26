@@ -116,10 +116,13 @@ def make(cfg: dict) -> None:
                          "geometry": mapping(box(gx, gy, gx + 0.25, gy + 0.25))})
     write("soil", _fc(soil))
     write("airport", _fc([{"type": "Feature", "properties": {}, "geometry": mapping(Point(c[0] + 0.1, c[1] + 0.05))} for c in CITIES]))
+    REAL_MUNIS = ["HALDIMAND COUNTY", "TOWN OF GREATER NAPANEE", "TOWNSHIP OF KING", "CITY OF BRAMPTON", "MUNICIPALITY OF SHUNIAH",
+                  "TOWNSHIP OF ENNISKILLEN", "TOWNSHIP OF RIDEAU LAKES", "CITY OF OTTAWA", "TOWNSHIP OF ARMOUR", "NORFOLK COUNTY"]
     muni = []
     for gx in np.arange(x0, x1, 0.4):
         for gy in np.arange(y0, y1, 0.4):
-            muni.append({"type": "Feature", "properties": {"MUNICIPAL_NAME_SHORTFORM": f"TEST TOWNSHIP {gx:.1f} {gy:.1f}"},
+            nm = REAL_MUNIS.pop() if REAL_MUNIS and rng.random() < 0.3 else f"TEST TOWNSHIP {gx:.1f} {gy:.1f}"
+            muni.append({"type": "Feature", "properties": {"MUNICIPAL_NAME_SHORTFORM": nm},
                          "geometry": mapping(box(gx, gy, gx + 0.4, gy + 0.4))})
     write("municipality", _fc(muni))
     # building footprints: small squares, dense in cities, sparse elsewhere -> zip -> aggregate (tests the parser)

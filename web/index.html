@@ -66,7 +66,9 @@
       <label><input type="checkbox" data-l="lines" checked> Transmission lines</label>
       <label><input type="checkbox" data-l="subs" checked> Substations</label>
       <label><input type="checkbox" data-l="capcolor" checked> Colour stations by connection room</label>
+      <label><input type="checkbox" data-l="projects" checked> Battery projects (operating / contracted)</label>
       <label><input type="checkbox" data-l="plants"> Generating stations</label>
+      <label><input type="checkbox" data-l="stanceview"> Colour hexagons by council stance</label>
       <label><input type="checkbox" data-l="outside"> <span id="outside-label">Show infrastructure outside Ontario</span></label>
     </div>
   </section>
@@ -82,6 +84,14 @@
     <div class="leg-items">
       <span><i class="ln" style="background:#b42318"></i>500 kV</span><span><i class="ln" style="background:#e8710a"></i>230 kV</span>
       <span><i class="ln" style="background:#2b6cb0"></i>115 kV</span><span><i class="ln" style="background:#8a8f98"></i>&lt;115 kV</span>
+    </div>
+    <div class="leg-items">
+      <span><i class="dot big" style="background:#6941c6;box-shadow:0 0 0 2px #6941c6"></i>Operating battery</span>
+      <span><i class="dot big" style="background:#fff;box-shadow:0 0 0 2px #6941c6"></i>Contracted battery (size = MW)</span>
+    </div>
+    <div class="leg-items">
+      <span><i class="sw" style="background:rgba(18,183,106,.6)"></i>Council supportive</span><span><i class="sw" style="background:rgba(247,144,9,.6)"></i>Mixed</span>
+      <span><i class="sw" style="background:rgba(217,45,32,.6)"></i>Opposed</span><span class="leg-src">(stance view only)</span>
     </div>
     <div class="leg-items" id="cap-leg">
       <span><i class="dot" style="background:#12b76a"></i>≥10 MW room</span><span><i class="dot" style="background:#f79009"></i>2–10 MW</span>

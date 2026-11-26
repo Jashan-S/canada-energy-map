@@ -49,6 +49,13 @@ Layers are looked up by **name** on the LIO MapServers, so a renumbered layer wo
 
 `config.yaml → jurisdictions.score` lists the provinces/states whose land is scored (now `[CA-ON]`). OSM infrastructure is tagged with its ISO 3166-2 code. Anything outside the scored jurisdictions (New York, Michigan, Quebec…) is **never used in scores**; you can switch it on in the map with "Show infrastructure outside Ontario". To expand, add a code and supply that jurisdiction's land-constraint layers, because the LIO layers only cover Ontario.
 
+## Researched reference layers (`data/manual/`, edit freely)
+
+| File | Contents (as of Nov 2026) |
+|---|---|
+| `bess_projects.csv` | 29 operating or IESO-contracted battery projects (Oneida, E-LT1, LT1, LT2 capacity window 1): contract MW, MWh where published, status, program, municipality, source. Blank coordinates are placed at the municipality centre, marked "approximate". |
+| `municipal_stance.csv` | 26 councils: supportive (hosted a contracted project), mixed, or opposed (refused support, banned BESS or refused zoning), each with a note, date and source link. Names are matched loosely ("Township of X" = "X"). |
+
 ## Your own inputs (`data/manual/`)
 
 | File | What to put in it | Effect |

@@ -1,3 +1,31 @@
-# Optional. Council stance on hosting energy projects (e.g. from LT2/LLT support resolutions or moratoria).
-# stance: supportive | neutral | opposed   (name must match the map's municipality name, case-insensitive)
-municipality,stance,note
+# Council stance on hosting battery / storage projects. stance: supportive | mixed | opposed
+# "supportive" = passed a Municipal Support Resolution/Confirmation for a project that won an IESO contract (or council vote in favour).
+# "opposed" = council refused support, banned BESS, or refused zoning. "mixed" = support then refusal (or the reverse).
+# Municipality names are matched loosely ("Township of X", "X Township", "X" all match). Add rows as you learn more.
+municipality,stance,note,date,source
+Haldimand County,supportive,"Hosts Oneida (250 MW operating), Hagersville (300 MW operating), Hedley (LT1 200 MW)",2024,https://www.energy-storage.news/boralex-commissions-canadas-largest-operating-bess-in-ontario/
+Greater Napanee,supportive,Voted to support three BESS; Napanee 250 MW operating; Napanee Phase 2 (LT2 300 MW),2023,https://globalnews.ca/news/10156261/elizabethtown-kitley-council-says-no-to-battery-energy-storage-facility
+Lakeshore,supportive,Tilbury Battery Storage 80 MW (E-LT1),2023,https://www.IESO.ca/-/media/Files/IESO/Document-Library/long-term-rfp/ELT1-RFP-Selected-Proponents.pdf
+Windsor,supportive,Walker BESS 4/5/6 (E-LT1),2023,https://www.IESO.ca/-/media/Files/IESO/Document-Library/long-term-rfp/ELT1-RFP-Selected-Proponents.pdf
+King,supportive,York BESS 120 MW (operating),2023,https://www.IESO.ca/-/media/Files/IESO/Document-Library/long-term-rfp/ELT1-RFP-Selected-Proponents.pdf
+Cramahe,supportive,SFF 06 (E-LT1),2023,https://www.IESO.ca/-/media/Files/IESO/Document-Library/long-term-rfp/ELT1-RFP-Selected-Proponents.pdf
+Guelph,supportive,Arlen Energy Storage 1 (E-LT1),2023,https://www.IESO.ca/-/media/Files/IESO/Document-Library/long-term-rfp/ELT1-RFP-Selected-Proponents.pdf
+Brampton,supportive,Goreway BESS 50 MW (operating),2023,https://www.IESO.ca/-/media/Files/IESO/Document-Library/long-term-rfp/ELT1-RFP-Selected-Proponents.pdf
+Vaughan,supportive,Vaughan 1E and Vaughan 3 (E-LT1),2023,https://www.IESO.ca/-/media/Files/IESO/Document-Library/long-term-rfp/ELT1-RFP-Selected-Proponents.pdf
+Mississippi Mills,supportive,Almonte BESS (E-LT1) and Almonte BESS 2 (LT1),2024,https://renewablesassociation.ca/?p=19794
+Edwardsburgh/Cardinal,supportive,Skyview 2 390 MW (LT1),2024,https://renewablesassociation.ca/?p=19794
+St. Thomas,supportive,Edgeware 71 MW (LT1) on industrial land,2024,https://www.edpr.com/north-america/edgeware-energy-storage-project
+South-West Oxford,supportive,Boralex 118 MW (LT1),2024,https://renewablesassociation.ca/?p=19794
+Centre Wellington,supportive,Elora BESS 200 MW (LT1),2024,https://renewablesassociation.ca/?p=19794
+North Glengarry,supportive,North Glengarry BESS 15 MW (LT1),2024,https://renewablesassociation.ca/?p=19794
+Ottawa,supportive,Council backed Fitzroy and Marchurst BESS (2025) despite rural committee opposition,2025,https://www.energy-storage.news/evolugen-gets-city-council-support-for-250mw-ieso-tender-winning-bess-project-in-canada
+Norfolk County,supportive,Simcoe Battery Project 150 MW (LT2 capacity),2026,https://www.ieso.ca/-/media/Files/IESO/Document-Library/long-term-rfp/capacity/LT2c-1-20260702-Public-Result-Table-With-Individual-Prices.pdf
+Arran-Elderslie,mixed,Supported LT1 Grey Owl / OZ-1 but denied zoning for the 400 MW Tara BESS (Jul 2025),2025,https://sarnianewstoday.ca/midwestern/news/2025/07/15/arran-elderslie-council-denies-zoning-amendment-for-battery-storage-facility-build
+Armour,mixed,MSR in 2022; refused OPA/ZBA Jan 2026; OLT approved Jul 2026,2026,https://irp.cdn-website.com/20e551fd/files/uploaded/OLT-26-000137-JUL-21-2026+-+Decision+-+PowerBank+BESS+with+Bylaw+-.pdf
+Shuniah,opposed,Denied MSR for 400 MW PowerBank LDES and any projects in the Dec 2025 intake,2025,https://www.energy-storage.news/ontario-municipality-denies-support-for-3-2gwh-bess-project-ahead-of-looming-ieso-rfp-deadline/
+Enniskillen,opposed,Unanimously refused Inwood BESS; third BESS turned down,2025,https://petrolialambtonindependent.ca/2025/12/03/enniskillen-turns-down-inwood-battery-storage-project/
+Elizabethtown-Kitley,opposed,Refused Baseload Power BESS and voted to ban BESS for the council term,2023,https://www.cbc.ca/amp/1.7047393
+Rideau Lakes,opposed,Two BESS proposals refused 5-4,2025,https://hometownnews.ca/new.hometownnews.ca/rlt-council-rejects-bess-projects
+Prince Edward County,opposed,Refused Picton BESS and Athol BESS proposals,2024,https://www.pictongazette.ca/post/council-rejects-picton-bess-proposal
+Loyalist,opposed,Declined to support four storage proposals (took no further action),2023,https://canada-info.ca/en/?p=198664
+Bluewater,opposed,Unanimously rejected Bedrock compressed-air storage MSR (Aug 2026),2026,https://www.energy-storage.news/ontario-municipality-rejects-bedrock-energys-canada-compressed-air-energy-storage-project-rejected/

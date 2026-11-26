@@ -90,4 +90,5 @@ features:
 manual:
   price_nodes: data/manual/price_nodes.csv
   municipal_stance: data/manual/municipal_stance.csv
+  bess_projects: data/manual/bess_projects.csv
   grid_needs: data/manual/grid_needs.geojson

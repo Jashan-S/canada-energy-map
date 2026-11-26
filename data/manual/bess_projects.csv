@@ -1,0 +1,31 @@
+# Operating and IESO-contracted battery projects in Ontario (contract MW). Blank lat/lon = placed at the municipality centre (approximate).
+name,mw,mwh,status,program,municipality,lat,lon,source
+Oneida Energy Storage,250,1000,operating,Province-directed IESO contract,Haldimand County,,,https://ieso.ca/Sector-Participants/IESO-News/2025/05/Oneida-Energy-Storage-Project-Begins-Commercial-Operations
+Hagersville Battery Energy Storage Park,285,1200,operating,E-LT1,Haldimand County,,,https://www.energy-storage.news/boralex-commissions-canadas-largest-operating-bess-in-ontario/
+Napanee Energy Storage,250,1000,operating,E-LT1,Greater Napanee,,,https://www.energy-storage.news/northland-power-puts-1000mwh-bess-in-canada-into-operations
+York BESS,114,,operating,E-LT1,King,,,https://www.energy-storage.news/?p=87022
+Goreway BESS,47.5,,operating,E-LT1,Brampton,,,https://www.energy-storage.news/?p=87022
+Tilbury Battery Storage,76,320,contracted,E-LT1,Lakeshore,,,https://www.IESO.ca/-/media/Files/IESO/Document-Library/long-term-rfp/ELT1-RFP-Selected-Proponents.pdf
+Walker BESS 4,4.749,,contracted,E-LT1,Windsor,,,https://www.IESO.ca/-/media/Files/IESO/Document-Library/long-term-rfp/ELT1-RFP-Selected-Proponents.pdf
+Walker BESS 5,4.749,,contracted,E-LT1,Windsor,,,https://www.IESO.ca/-/media/Files/IESO/Document-Library/long-term-rfp/ELT1-RFP-Selected-Proponents.pdf
+Walker BESS 6,4.749,,contracted,E-LT1,Windsor,,,https://www.IESO.ca/-/media/Files/IESO/Document-Library/long-term-rfp/ELT1-RFP-Selected-Proponents.pdf
+SFF 06,4.74,,contracted,E-LT1,Cramahe,,,https://www.IESO.ca/-/media/Files/IESO/Document-Library/long-term-rfp/ELT1-RFP-Selected-Proponents.pdf
+903,4.74,,contracted,E-LT1,Armour,,,https://www.IESO.ca/-/media/Files/IESO/Document-Library/long-term-rfp/ELT1-RFP-Selected-Proponents.pdf
+OZ-1,4.74,,contracted,E-LT1,Arran-Elderslie,,,https://www.IESO.ca/-/media/Files/IESO/Document-Library/long-term-rfp/ELT1-RFP-Selected-Proponents.pdf
+Arlen Energy Storage 1,19,,contracted,E-LT1,Guelph,,,https://www.IESO.ca/-/media/Files/IESO/Document-Library/long-term-rfp/ELT1-RFP-Selected-Proponents.pdf
+Vaughan 1E Energy Storage 1,19,,contracted,E-LT1,Vaughan,,,https://www.IESO.ca/-/media/Files/IESO/Document-Library/long-term-rfp/ELT1-RFP-Selected-Proponents.pdf
+Vaughan 3 Energy Storage 1,38,,contracted,E-LT1,Vaughan,,,https://www.IESO.ca/-/media/Files/IESO/Document-Library/long-term-rfp/ELT1-RFP-Selected-Proponents.pdf
+Almonte BESS,4.749,,contracted,E-LT1,Mississippi Mills,,,https://www.IESO.ca/-/media/Files/IESO/Document-Library/long-term-rfp/ELT1-RFP-Selected-Proponents.pdf
+Skyview 2,390,1858,contracted,LT1,Edwardsburgh/Cardinal,,,https://www.energy-storage.news/ontario-makes-canadas-biggest-ever-battery-storage-procurement-to-meet-target
+Grey Owl Storage,380,,contracted,LT1,Arran-Elderslie,,,https://renewablesassociation.ca/?p=19794
+Fitzroy BESS,250,,contracted,LT1,Ottawa,45.47,-76.21,https://renewablesassociation.ca/?p=19794
+Trail Road BESS,150,,contracted,LT1,Ottawa,45.25,-75.83,https://renewablesassociation.ca/?p=19794
+Elora BESS,200,,contracted,LT1,Centre Wellington,,,https://renewablesassociation.ca/?p=19794
+Hedley BESS,200,,contracted,LT1,Haldimand County,,,https://renewablesassociation.ca/?p=19794
+Edgeware Energy Storage,71.25,300,contracted,LT1,St. Thomas,,,https://www.edpr.com/north-america/edgeware-energy-storage-project
+Boralex South-West Oxford BESS,118,,contracted,LT1,South-West Oxford,,,https://renewablesassociation.ca/?p=19794
+Almonte BESS 2,9.49,,contracted,LT1,Mississippi Mills,,,https://renewablesassociation.ca/?p=19794
+North Glengarry BESS,15.48,,contracted,LT1,North Glengarry,,,https://renewablesassociation.ca/?p=19794
+Napanee BESS Phase 2,300,,contracted,LT2 capacity (window 1),Greater Napanee,,,https://www.ieso.ca/-/media/Files/IESO/Document-Library/long-term-rfp/capacity/LT2c-1-20260702-Public-Result-Table-With-Individual-Prices.pdf
+Eagle Lake Power Reserve,190,,contracted,LT2 capacity (window 1),Unorganized Kenora (near Oxdrift),49.79,-92.87,https://www.ieso.ca/-/media/Files/IESO/Document-Library/long-term-rfp/capacity/LT2c-1-20260702-Public-Result-Table-With-Individual-Prices.pdf
+Simcoe Battery Project,150,1200,contracted,LT2 capacity (window 1),Norfolk County,,,https://www.ieso.ca/-/media/Files/IESO/Document-Library/long-term-rfp/capacity/LT2c-1-20260702-Public-Result-Table-With-Individual-Prices.pdf
