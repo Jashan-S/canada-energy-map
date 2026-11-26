@@ -131,9 +131,17 @@
     if (st === S_FAINT) return rampColor(score[i], 55);
     return rampColor(score[i], 200);
   }
-  function hexLayer() {
+  function hexLayers() {
+    // one layer per resolution zone (H3 layers draw a single resolution efficiently)
+    return D.zones.map((z, k) => {
+      const end = z.start + z.n, data = [];
+      for (const i of shown) if (i >= z.start && i < end) data.push(i);
+      return hexLayer(`hex-${z.zone}`, data);
+    });
+  }
+  function hexLayer(id, data) {
     const common = {
-      id: "hex", data: shown, pickable: true,
+      id, data, pickable: true,
       getFillColor: fill,
       updateTriggers: { getFillColor: [score, selected, shown.length, state.minScore] },
       onClick: (info) => { if (info.object != null && hstate[info.object] !== S_EXCL) showDetail(info.object); },
@@ -150,7 +158,7 @@
   }
 
   function render() {
-    overlay.setProps({ layers: [hexLayer()], getTooltip: tooltip });
+    overlay.setProps({ layers: hexLayers(), getTooltip: tooltip });
     const tops = topSites();
     $("#top").innerHTML = tops.map((i) => {
       const m = D.cols.muni[i] >= 0 ? D.munis[D.cols.muni[i]].name : "—";
@@ -327,15 +335,12 @@
   // ------------------------------------------------------------ boot
   async function boot() {
     const qs = new URLSearchParams(location.search);
-    [meta, D] = await Promise.all([fetch("data/meta.json").then((r) => r.json()), fetch("data/hexes.json").then((r) => r.json())]);
-    N = D.n;
+    meta = await fetch("data/meta.json").then((r) => r.json());
+    const files = meta.hex_files || [{ file: "hexes.json", zone: "all" }];
+    D = await fetch("data/" + files[0].file).then((r) => r.json());
+    D.zones = [{ zone: files[0].zone, start: 0, n: D.n, res: D.res }];
+    initArrays();
     if (window.innerWidth < 700) $("#panel").classList.remove("open");
-    score = new Float32Array(N); sub = new Float32Array(N * 4); hstate = new Uint8Array(N); reason = new Uint8Array(N);
-    centers = D.cols.h3.map((h) => h3.cellToLatLng(h));
-    dTor = new Float32Array(N);
-    for (let i = 0; i < N; i++) dTor[i] = km(centers[i][0], centers[i][1], TORONTO[0], TORONTO[1]);
-    if (!D.cols.bldg_cov) { D.cols.bldg_cov = new Array(N).fill(null); D.cols.bldg_n = new Array(N).fill(-1); }
-    for (const k of ["d_sub_230", "d_line_230"]) if (!D.cols[k]) D.cols[k] = new Array(N).fill(null);
 
     const notes = [];
     if (meta.fixture) notes.push("<b>TEST DATA.</b> Built from synthetic fixtures — not real infrastructure.");
@@ -361,7 +366,40 @@
     setLayerVis();
     update();
     $("#loading").remove();
+    loadMoreZones(files.slice(1));
     window.__siting = { state, update, score: () => score, ranked: () => ranked, shown: () => shown, topSites, hstate: () => hstate, reason: () => reason };
   }
+  function initArrays() {
+    N = D.cols.h3.length;
+    for (const k of Object.keys(D.cols)) if (D.cols[k] == null && k !== "need") D.cols[k] = new Array(N).fill(null);
+    if (!D.cols.bldg_cov) { D.cols.bldg_cov = new Array(N).fill(null); D.cols.bldg_n = new Array(N).fill(-1); }
+    for (const k of ["d_sub_230", "d_line_230", "sub_230"]) if (!D.cols[k]) D.cols[k] = new Array(N).fill(null);
+    score = new Float32Array(N); sub = new Float32Array(N * 4); hstate = new Uint8Array(N); reason = new Uint8Array(N);
+    centers = D.cols.h3.map((h) => h3.cellToLatLng(h));
+    dTor = new Float32Array(N);
+    for (let i = 0; i < N; i++) dTor[i] = km(centers[i][0], centers[i][1], TORONTO[0], TORONTO[1]);
+  }
+
+  // Later zones (e.g. northern Ontario) load after the first render, then get appended.
+  async function loadMoreZones(rest) {
+    for (const f of rest) {
+      const note = $("#zone-note");
+      note.textContent = `Loading ${f.zone} Ontario…`; note.hidden = false;
+      try {
+        const part = await fetch("data/" + f.file).then((r) => r.json());
+        const start = D.cols.h3.length;
+        for (const k of Object.keys(D.cols)) {
+          const add = part.cols[k] || new Array(part.n).fill(k === "need" ? "" : null);
+          if (D.cols[k] == null) { if (k === "need") D.cols[k] = new Array(start).fill(""); else continue; }
+          D.cols[k] = D.cols[k].concat(add);
+        }
+        D.zones.push({ zone: f.zone, start, n: part.n, res: part.res });
+        initArrays();
+        update();
+        note.hidden = true;
+      } catch (e) { note.textContent = `Couldn't load ${f.zone} Ontario: ${e.message}`; }
+    }
+  }
+
   boot().catch((e) => { $("#loading").textContent = "Failed to load: " + e.message; console.error(e); });
 })();

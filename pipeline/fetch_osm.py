@@ -11,21 +11,32 @@ import json
 
 from .common import RAW, http, log
 
+# {area} = the province (by ISO code), {b} = border box for neighbouring infrastructure
+AREA = 'area["ISO3166-2"="CA-ON"]["admin_level"="4"]->.on;'
+
 Q_LINES = """[out:json][timeout:{t}];
-way["power"~"^(line|minor_line|cable)$"]({b});
+{area}
+(
+  way["power"~"^(line|minor_line|cable)$"](area.on);
+  way["power"~"^(line|cable)$"]({b});
+);
 out tags geom;"""
 
 Q_POINTS = """[out:json][timeout:{t}];
+{area}
 (
+  nwr["power"="substation"](area.on);
+  nwr["power"="plant"](area.on);
   nwr["power"="substation"]({b});
   nwr["power"="plant"]({b});
 );
 out tags center;"""
 
 Q_INDUSTRIAL = """[out:json][timeout:{t}];
+{area}
 (
-  way["landuse"="industrial"]({b});
-  relation["landuse"="industrial"]({b});
+  way["landuse"="industrial"](area.on);
+  relation["landuse"="industrial"](area.on);
 );
 out tags bb;"""
 
@@ -35,9 +46,9 @@ def _run(cfg: dict, query: str, out_name: str, force: bool) -> None:
     if out.exists() and not force:
         log.info("osm %-22s cached", out_name)
         return
-    x0, y0, x1, y1 = cfg["region"]["bbox"]
+    x0, y0, x1, y1 = cfg["region"].get("border_bbox") or cfg["region"]["bbox"]
     t = cfg["osm"]["timeout_s"]
-    q = query.format(t=t, b=f"{y0},{x0},{y1},{x1}")
+    q = query.format(t=t, b=f"{y0},{x0},{y1},{x1}", area=AREA)
     last = None
     for ep in cfg["osm"]["endpoints"]:
         try:

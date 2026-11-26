@@ -250,16 +250,32 @@ def _cli_class(v) -> int:
     return int(s[0]) if s[0].isdigit() and 1 <= int(s[0]) <= 7 else 0
 
 
+def zones(cfg: dict) -> list[dict]:
+    """Resolution zones; default = one zone at region.h3_resolution."""
+    return cfg["region"].get("zones") or [{"name": "all", "res": cfg["region"]["h3_resolution"]}]
+
+
 def build(cfg: dict) -> dict:
     proj = cfg["projection"]
-    res = cfg["region"]["h3_resolution"]
+    fine = cfg["region"]["h3_resolution"]
     fcfg = cfg["features"]
     missing = []
 
     juris = jurisdictions(cfg)
     land = land_mask(cfg, juris)
-    hexw, hexp = hex_grid(land, res, proj)
+    x0, _, x1, _ = cfg["region"]["bbox"]
+    parts = []
+    for z in zones(cfg):
+        zland = land.intersection(box(x0 - 1, z.get("lat_min", -90), x1 + 1, z.get("lat_max", 90)))
+        if zland.is_empty:
+            continue
+        g = hex_grid(zland, z["res"], proj)[0]
+        g["res"], g["zone"] = z["res"], z["name"]
+        parts.append(g)
+    hexw = gpd.GeoDataFrame(pd.concat(parts, ignore_index=True), crs=WGS)
+    hexp = hexw.to_crs(proj)
     n = len(hexp)
+    log.info("total hexes: %d (%s)", n, ", ".join(f"{p.zone.iloc[0]}={len(p)}@r{p.res.iloc[0]}" for p in parts if len(p)))
 
     # ---- grid (only infrastructure in scored jurisdictions counts toward scores)
     lines, pts, ind = load_osm(cfg)
@@ -291,7 +307,10 @@ def build(cfg: dict) -> dict:
     feat["d_sub_230"] = _nearest_km(hexp.geometry, subs[subs.kv230].geometry)
     feat["d_line_230"] = _nearest_km(hexp.geometry, l230.geometry)
     feat["d_plant"] = _nearest_km(hexp.geometry, plants.geometry)
-    feat["ind_ha"] = industrial_load(list(hexw.h3), ind, res, fcfg["load_radius_km"])
+    feat["ind_ha"] = 0.0
+    for r in sorted(hexw.res.unique()):
+        m = (hexw.res == r).values
+        feat.loc[m, "ind_ha"] = industrial_load(list(hexw.h3[m]), ind, int(r), fcfg["load_radius_km"])
 
     # nearest HV substation name/kv for the detail panel
     if len(subs[subs.hv]):
@@ -310,9 +329,18 @@ def build(cfg: dict) -> dict:
         feat["sub_230_idx"] = -1
 
     # ---- buildings (coverage % of hex footprint, count)
-    bpath = common.RAW / f"buildings_h3r{res}.json"
+    bpath = common.RAW / f"buildings_h3r{fine}.json"
     if bpath.exists():
         bl = json.loads(bpath.read_text())
+        for r in set(hexw.res.unique()) - {fine}:   # coarser zones: roll fine cells up to parents
+            if r > fine:
+                raise SystemExit("zone resolution finer than region.h3_resolution")
+            par: dict[str, list] = {}
+            for c, (a, k) in bl.items():
+                v = par.setdefault(h3.cell_to_parent(c, int(r)), [0, 0])
+                v[0] += a
+                v[1] += k
+            bl.update(par)
         area = np.array([h3.cell_area(c, "m^2") for c in feat.h3])
         ba = np.array([bl.get(c, (0, 0))[0] for c in feat.h3], dtype=float)
         feat["bldg_cov"] = np.minimum(100, ba / area * 100)
@@ -435,10 +463,7 @@ def build(cfg: dict) -> dict:
         a = feat[name].astype(float).values
         return [None if np.isnan(v) else round(float(v), nd) for v in a]
 
-    hexes = {
-        "res": res,
-        "n": n,
-        "cols": {
+    cols = {
             "h3": list(feat.h3),
             "d_sub": col("d_sub"),
             "d_sub_hv": col("d_sub_hv"),
@@ -458,14 +483,25 @@ def build(cfg: dict) -> dict:
             "sub_hv": [int(x) for x in feat.sub_hv_idx],
             "sub_230": [int(x) for x in feat.sub_230_idx],
             "need": [str(x) for x in need_label] if (need_label != "").any() else None,
-        },
+    }
+    common_lists = {
         "munis": munis,
         "hv_subs": [
             {"name": r.name or "(unnamed)", "kv": None if np.isnan(r.kv) else r.kv}
             for r in hvs.to_crs(WGS).itertuples()
         ],
     }
-    write_json(common.WEB_DATA / "hexes.json", hexes)
+    # one file per zone; the first also carries the shared lookup lists. The map loads them in order.
+    hex_files = []
+    for k, z in enumerate(zones(cfg)):
+        idx = np.flatnonzero((hexw.zone == z["name"]).values)
+        fname = "hexes.json" if k == 0 else f"hexes_{z['name']}.json"
+        part = {"res": z["res"], "zone": z["name"], "n": int(len(idx)),
+                "cols": {c: (None if v is None else [v[i] for i in idx]) for c, v in cols.items()}}
+        if k == 0:
+            part.update(common_lists)
+        write_json(common.WEB_DATA / fname, part)
+        hex_files.append({"zone": z["name"], "file": fname, "res": z["res"], "n": int(len(idx))})
     _export_overlays(lines, pts, subs_all.to_crs(WGS))
 
     meta = {
@@ -473,6 +509,7 @@ def build(cfg: dict) -> dict:
         "region": cfg["region"],
         "jurisdictions": cfg["jurisdictions"]["score"],
         "hex_count": n,
+        "hex_files": hex_files,
         "counts": {
             "lines": int(len(lines_s)), "hv_lines": int(len(hv_lines)), "substations": int(len(subs)),
             "hv_substations": int(subs.hv.sum()), "kv230_substations": int(subs.kv230.sum()),

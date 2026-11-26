@@ -2,11 +2,18 @@
 # All sources are public. Edit here, not in code.
 
 region:
-  name: Southern Ontario
-  # lon_min, lat_min, lon_max, lat_max (WGS84). North edge ~46.0 = roughly
-  # Parry Sound / Mattawa; raise to 46.4 to pull in North Bay / Sudbury edge.
-  bbox: [-83.2, 41.6, -74.3, 46.0]
-  h3_resolution: 8          # 8 ≈ 0.74 km² per hex (~170k hexes). 7 ≈ 5.2 km² (~25k).
+  name: Ontario
+  # Download/scoring box (lon_min, lat_min, lon_max, lat_max). The land mask is the scored
+  # jurisdiction(s) inside this box, so this covers all of Ontario.
+  bbox: [-95.2, 41.6, -74.3, 56.9]
+  h3_resolution: 8          # finest resolution used (building footprints are aggregated at this level)
+  # Resolution zones: dense south at res 8 (~0.74 km², ~160k hexes), sparse north at res 7
+  # (~5.2 km², ~185k hexes) so the whole province stays light enough for a browser.
+  zones:
+    - {name: south, lat_max: 46.0, res: 8}
+    - {name: north, lat_min: 46.0, res: 7}
+  # Neighbouring (US / Quebec) infrastructure downloaded for display only (never scored)
+  border_bbox: [-84.0, 41.6, -74.0, 46.6]
 
 # Jurisdictions whose land is scored (ISO 3166-2, as in Natural Earth). Infrastructure
 # elsewhere in the download box (e.g. New York, Michigan, Quebec) is kept for display

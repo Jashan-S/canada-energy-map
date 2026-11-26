@@ -101,3 +101,6 @@ button.link { border: 0; background: none; color: var(--accent); font: inherit; 
   #sheet-toggle span { display: block; width: 40px; height: 4px; border-radius: 2px; background: #cfd4dc; margin: 8px auto; }
   #detail { left: 8px; right: 8px; top: 8px; width: auto; max-height: 45vh; }
 }
+
+#zone-note { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 4;
+  background: #1d2433; color: #fff; font-size: 12.5px; padding: 6px 12px; border-radius: 14px; }

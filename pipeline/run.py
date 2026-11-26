@@ -33,6 +33,7 @@ def main(argv=None) -> int:
     ensure_dirs()
 
     if "fetch" in steps:
+        _invalidate_if_region_changed(cfg)
         from . import fetch_arcgis, fetch_base, fetch_buildings, fetch_osm
 
         fetch_base.fetch_all(cfg, a.force)
@@ -49,6 +50,23 @@ def main(argv=None) -> int:
 
         build.build(cfg)
     return 0
+
+
+def _invalidate_if_region_changed(cfg: dict) -> None:
+    """Raw OSM/LIO downloads depend on the region; drop them if bbox/zones/border changed.
+    Natural Earth and building footprints are province-wide, so they are kept."""
+    import json
+
+    stamp = common.RAW / "_region.json"
+    cur = {k: cfg["region"].get(k) for k in ("bbox", "border_bbox", "zones")}
+    cur["jurisdictions"] = cfg["jurisdictions"]["score"]
+    if stamp.exists() and json.loads(stamp.read_text()) == cur:
+        return
+    if stamp.exists() or any(common.RAW.glob("osm_*.json")):
+        for p in list(common.RAW.glob("osm_*.json")) + list(common.RAW.glob("lio_*.geojson")):
+            p.unlink()
+        log.info("region settings changed -> re-downloading OSM and LIO layers")
+    stamp.write_text(json.dumps(cur))
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 # Ontario Energy Siting Screener
 
-Map-based screening of Southern Ontario for **battery energy storage (BESS)** and **data-centre** sites, built only from public data.
-Every ~0.74 km² hexagon (H3 resolution 8, ~160k cells) gets a 0–100 score from grid access, land suitability, nearby load or market, and an optional price signal. Weights, exclusions, building limits and project type can all be changed live in the browser.
+Map-based screening of Ontario for **battery energy storage (BESS)** and **data-centre** sites, built only from public data.
+Southern Ontario (below 46°N) uses ~0.74 km² hexagons (H3 res 8, ~160k). Northern Ontario uses ~5.2 km² hexagons (res 7, ~185k) and loads after the south so the map opens fast. Each hexagon gets a 0–100 score from grid access, land suitability, nearby load or market, and an optional price signal. Weights, exclusions, building limits and project type can all be changed live in the browser. Zones are set in `config.yaml → region.zones`. Changing the region triggers a fresh OSM/LIO download on the next build.
 
 **Hexagon states:** coloured = at or above your score cutoff · faint = below the cutoff (still clickable) · grey = excluded (park, provincially significant wetland, specialty crop, reserve, too built up, or anything you've ticked under Exclude; hover to see why).
 
