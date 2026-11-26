@@ -31,7 +31,7 @@ python -m http.server -d web 8000 # open http://localhost:8000
 
 | Layer | Source | Used for |
 |---|---|---|
-| Transmission and distribution lines (with voltage), substations, generating stations | OpenStreetMap via Overpass (ODbL) | Grid distances, HV station inference, overlays |
+| Transmission and distribution lines (with voltage), substations, generating stations | OpenStreetMap: Geofabrik daily Ontario extract, filtered with pyosmium; Overpass only for the US/Quebec border box (ODbL) | Grid distances, HV station inference, overlays |
 | Industrial land | OpenStreetMap `landuse=industrial` | Load proxy (hectares within 5 km) |
 | Parks, conservation reserves, national wildlife and federal protected areas, First Nation reserves | Ontario GeoHub / LIO (OGL-Ontario) | Exclusions |
 | Wetlands (provincially significant vs other) | LIO "Wetland With Significance" | PSW exclusion, other wetland penalty |

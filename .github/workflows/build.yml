@@ -39,15 +39,23 @@ jobs:
       - id: month
         run: echo "month=$(date +%Y-%m)" >> "$GITHUB_OUTPUT"
 
-      # Reuse this month's downloads so code/weight tweaks rebuild in minutes, not an hour
-      - uses: actions/cache@v4
+      # Reuse this month's downloads so code/weight tweaks rebuild in minutes, not an hour.
+      # Restore and save are separate so partial downloads are kept even when a later step fails.
+      - uses: actions/cache/restore@v4
         with:
           path: data/raw
-          key: raw-${{ steps.month.outputs.month }}-${{ hashFiles('config.yaml') }}
+          key: raw-${{ steps.month.outputs.month }}-${{ github.run_id }}
           restore-keys: raw-${{ steps.month.outputs.month }}-
 
       - name: Fetch public data and build hex features
         run: python -m pipeline.run ${{ (inputs.force && '--force') || '' }}
+
+      - name: Save downloaded data (even if the build failed)
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/raw
+          key: raw-${{ steps.month.outputs.month }}-${{ github.run_id }}
 
       - name: Data summary
         run: cat web/data/meta.json && du -sh web/data/*
