@@ -34,11 +34,12 @@ def main(argv=None) -> int:
 
     if "fetch" in steps:
         _invalidate_if_region_changed(cfg)
-        from . import fetch_arcgis, fetch_base, fetch_buildings, fetch_osm
+        from . import capacity, fetch_arcgis, fetch_base, fetch_buildings, fetch_osm
 
         fetch_base.fetch_all(cfg, a.force)
         fetch_osm.fetch_all(cfg, a.force)
         failed = fetch_arcgis.fetch_all(cfg, a.force)
+        capacity.fetch(cfg, a.force)
         try:
             fetch_buildings.fetch(cfg, a.force)
         except Exception as e:  # degrade gracefully: map shows buildings as missing

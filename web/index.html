@@ -25,6 +25,12 @@
       <button data-p="tx">BESS<small>Transmission 20 MW+</small></button>
       <button data-p="dc">Data centre<small>Large load</small></button>
     </div>
+    <div id="size-row" hidden>
+      <p class="mini">Project size (for Hydro One connection room)</p>
+      <div class="seg seg3" id="size">
+        <button data-mw="2">2 MW</button><button data-mw="5" class="on">5 MW</button><button data-mw="10">10 MW</button>
+      </div>
+    </div>
   </section>
 
   <section>
@@ -59,6 +65,7 @@
       <label><input type="checkbox" data-l="excluded" checked> Excluded areas (grey)</label>
       <label><input type="checkbox" data-l="lines" checked> Transmission lines</label>
       <label><input type="checkbox" data-l="subs" checked> Substations</label>
+      <label><input type="checkbox" data-l="capcolor" checked> Colour stations by connection room</label>
       <label><input type="checkbox" data-l="plants"> Generating stations</label>
       <label><input type="checkbox" data-l="outside"> <span id="outside-label">Show infrastructure outside Ontario</span></label>
     </div>
@@ -75,6 +82,11 @@
     <div class="leg-items">
       <span><i class="ln" style="background:#b42318"></i>500 kV</span><span><i class="ln" style="background:#e8710a"></i>230 kV</span>
       <span><i class="ln" style="background:#2b6cb0"></i>115 kV</span><span><i class="ln" style="background:#8a8f98"></i>&lt;115 kV</span>
+    </div>
+    <div class="leg-items" id="cap-leg">
+      <span><i class="dot" style="background:#12b76a"></i>≥10 MW room</span><span><i class="dot" style="background:#f79009"></i>2–10 MW</span>
+      <span><i class="dot" style="background:#d92d20"></i>&lt;2 MW or constrained</span>
+      <span class="leg-src">Generation room from the Hydro One List of Station Capacity (Nov 2025), before existing or allocated projects. Stations not on the list use the colours below.</span>
     </div>
     <div class="leg-items">
       <span><i class="dot" style="background:#111827"></i>Transmission station (≥115 kV)</span>

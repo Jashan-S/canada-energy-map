@@ -64,6 +64,13 @@ lio:
 buildings:
   url: https://minedbuildings.z5.web.core.windows.net/legacy/canadian-buildings-v2/Ontario.zip
 
+# Hydro One List of Station Capacity (distribution-level generation room). The pipeline tries to
+# download the latest PDF; if that fails it uses the committed parsed copy below.
+capacity:
+  fallback_csv: data/manual/hydroone_station_capacity_2025-11.csv
+  thresholds_mw: [2, 5, 10]   # precomputed "distance to a station with >= X MW free" layers
+  near_km: 15                 # nearest listed station shown in the detail panel within this distance
+
 # Feature settings
 features:
   hv_kv: 115                # "transmission" threshold (kV)

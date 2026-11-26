@@ -38,6 +38,7 @@ python -m http.server -d web 8000 # open http://localhost:8000
 | Greenbelt, Greenbelt specialty crop, Oak Ridges Moraine, Niagara Escarpment Plan | LIO | Exclusions and penalties |
 | Soil Survey Complex (CLI class) | LIO | Proxy for prime agricultural land (CLI 1–3) |
 | Built-up area, airports, lower/single-tier municipalities | LIO | Penalties, municipality name |
+| Station generation room | Hydro One **List of Station Capacity** (PDF, Nov 2025 edition committed in `data/manual/`; the build tries to fetch a newer one) | Best-bus and station MW free for new distribution-connected generation, plus TC (transmission-constrained) flags. Matched to OSM substations by name; the match list is in `web/data/capacity_matches.csv`. |
 | Building footprints (~3.8M) | Microsoft Canadian Building Footprints (ODbL) | Building coverage % and count per hex: penalty, or exclusion above your limits |
 | Province outline and lakes | Natural Earth | Land mask |
 
@@ -67,6 +68,8 @@ Push the changes and the workflow rebuilds the map.
 | Land | Product of (1 − penalty): CLI 1–3 0.25 · organic soil 0.5 · Greenbelt 0.35 · ORM/NEP 0.4 · other wetland 0.3 · built-up 0.3 · airport < 3 km 0.15 · building coverage above 5% up to 0.6 at your max | same | Same, but CLI 1–3 0.5 and Greenbelt 0.6 (needs employment-land rezoning) |
 | Load / market | log(1 + industrial ha within 5 km) / log(1501), capped at 1 | same | 0.7·e^(−km to downtown Toronto/60) + 0.3·industrial-land term |
 | Price | Min-max normalized node metric (0.5 if no node within range) | same | same |
+
+**Hydro One connection room.** In the BESS distribution profile with a project size of 2, 5 or 10 MW, grid access = 0.45·e^(−d_substation/3) + 0.2·e^(−d_line/1) + 0.35·e^(−d_station with ≥ size MW room/4 km). Room per bus = min(thermal MW, short-circuit MVA / 1.2). The 1.2 MVA per MW is an assumption for inverter short-circuit contribution. In both BESS profiles, grid access is cut 30% where the nearest listed station is TC. Caveats: the list ignores existing and allocated projects, covers Hydro One-owned stations only, and stations that can't be matched by name are left out.
 
 Building limits (defaults: 25% coverage, 150 buildings per hex) exclude dense urban and residential hexagons. A 20 MW / 4 h BESS needs roughly 0.5–1.5 ha, so a single farmhouse in a 74 ha hexagon isn't penalized.
 

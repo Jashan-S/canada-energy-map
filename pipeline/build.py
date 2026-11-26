@@ -20,7 +20,7 @@ from shapely import STRtree
 from shapely.geometry import LineString, Point, box, mapping
 from shapely.ops import unary_union
 
-from . import common
+from . import capacity, common
 from .common import ROOT, log, write_json
 
 WGS = "EPSG:4326"
@@ -291,6 +291,10 @@ def build(cfg: dict) -> dict:
     snap = fcfg["substation_hv_snap_m"]
     subs_all["hv"] = (subs_all.kv >= fcfg["hv_kv"]) | (near_hv <= snap)
     subs_all["kv230"] = (subs_all.kv >= fcfg["dc_kv"]) | (near_230 <= snap)
+    cap_sites = capacity.sites(cfg)
+    subs_all = capacity.match(subs_all, cap_sites)
+    subs_all.loc[~subs_all.scope, ["cap_best", "cap_total"]] = np.nan
+    subs_all.loc[~subs_all.scope, "cap_site"] = ""
     subs = subs_all[subs_all.scope]
     plants = pts_p[(pts_p.kind == "plant") & pts_p.scope].copy()
     ind = ind[_within(gpd.GeoDataFrame(geometry=gpd.points_from_xy(ind.lon, ind.lat), crs=WGS),
@@ -311,6 +315,20 @@ def build(cfg: dict) -> dict:
     for r in sorted(hexw.res.unique()):
         m = (hexw.res == r).values
         feat.loc[m, "ind_ha"] = industrial_load(list(hexw.h3[m]), ind, int(r), fcfg["load_radius_km"])
+
+    # Hydro One connection room: distance to a listed, non-constrained station with >= X MW free
+    ccfg = cfg.get("capacity", {})
+    listed = subs[subs.cap_site != ""]
+    for thr in ccfg.get("thresholds_mw", []):
+        ok = listed[(listed.cap_best >= thr) & ~listed.cap_tc.astype(bool)]
+        feat[f"d_cap{thr}"] = _nearest_km(hexp.geometry, ok.geometry)
+    # nearest listed station (one entry per site) for the detail panel
+    cap_list = listed.drop_duplicates("cap_site").reset_index(drop=True)
+    if len(cap_list):
+        ci, cd = STRtree(cap_list.geometry.values).query_nearest(hexp.geometry.values, return_distance=True, all_matches=False)
+        feat["cap_idx"] = np.where(cd / 1000 <= ccfg.get("near_km", 15), ci[1], -1)
+    else:
+        feat["cap_idx"] = -1
 
     # nearest HV substation name/kv for the detail panel
     if len(subs[subs.hv]):
@@ -483,8 +501,14 @@ def build(cfg: dict) -> dict:
             "sub_hv": [int(x) for x in feat.sub_hv_idx],
             "sub_230": [int(x) for x in feat.sub_230_idx],
             "need": [str(x) for x in need_label] if (need_label != "").any() else None,
+            "cap": [int(x) for x in feat.cap_idx],
+            **{f"d_cap{t}": col(f"d_cap{t}") for t in ccfg.get("thresholds_mw", [])},
     }
     common_lists = {
+        "cap_subs": [
+            {"site": r.cap_site, "best": float(r.cap_best), "total": float(r.cap_total), "tc": bool(r.cap_tc)}
+            for r in cap_list.itertuples()
+        ],
         "munis": munis,
         "hv_subs": [
             {"name": r.name or "(unnamed)", "kv": None if np.isnan(r.kv) else r.kv}
@@ -518,11 +542,33 @@ def build(cfg: dict) -> dict:
         },
         "missing_layers": sorted(set(missing)),
         "price": price_meta,
+        "capacity": {
+            "sites": int(len(cap_sites)),
+            "matched_sites": int(subs.loc[subs.cap_site != "", "cap_site"].nunique()),
+            "thresholds_mw": ccfg.get("thresholds_mw", []),
+        } if len(cap_sites) else None,
         "fixture": bool(cfg.get("_fixture")),
     }
     write_json(common.WEB_DATA / "meta.json", meta)
+    _capacity_report(cap_sites, subs.to_crs(WGS))
     log.info("export done: %s", meta)
     return meta
+
+
+def _capacity_report(cap_sites: pd.DataFrame, subs: gpd.GeoDataFrame) -> None:
+    """web/data/capacity_matches.csv: every Hydro One site and the OSM substation it matched (if any)."""
+    if cap_sites.empty:
+        return
+    m = subs[subs.cap_site != ""].drop_duplicates("cap_site").set_index("cap_site")
+    with open(common.WEB_DATA / "capacity_matches.csv", "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["hydro_one_site", "best_bus_mw", "station_total_mw", "tc", "osm_name", "lat", "lon"])
+        for r in cap_sites.sort_values("site").itertuples():
+            if r.site in m.index:
+                o = m.loc[r.site]
+                w.writerow([r.site, r.best_mw, r.total_mw, r.tc, o["name"], round(o.geometry.y, 5), round(o.geometry.x, 5)])
+            else:
+                w.writerow([r.site, r.best_mw, r.total_mw, r.tc, "", "", ""])
 
 
 def _read_stance(path: Path) -> dict:
@@ -556,7 +602,7 @@ def _export_overlays(lines, pts, subs):
     tl["geometry"] = tl.geometry.simplify(0.0002)
     tl = tl.round({"kv": 0})
     write_json(common.WEB_DATA / "lines.geojson", _round_coords(fc(tl, ["kv", "name", "operator", "hv", "j", "scope"])))
-    write_json(common.WEB_DATA / "substations.geojson", _round_coords(fc(subs, ["name", "kv", "operator", "hv", "j", "scope"])))
+    write_json(common.WEB_DATA / "substations.geojson", _round_coords(fc(subs, ["name", "kv", "operator", "hv", "j", "scope", "cap_best", "cap_total", "cap_tc"])))
     pl = pts[pts.kind == "plant"]
     write_json(common.WEB_DATA / "plants.geojson", _round_coords(fc(pl, ["name", "source", "mw", "operator", "j", "scope"])))
 

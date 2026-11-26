@@ -58,11 +58,14 @@ def make(cfg: dict) -> None:
                     "geometry": [{"lon": a[0], "lat": a[1]}, {"lon": a[0] + 0.1, "lat": a[1] + 0.05}]})
     (raw / "osm_power_lines.json").write_text(json.dumps({"elements": els}))
 
+    import pandas as pd
+    lsc = pd.read_csv(common.ROOT / cfg["capacity"]["fallback_csv"], dtype=str)
+    real_names = sorted(set(lsc.station.str.replace(r"\s+(DESN\d+|#\d+)$", "", regex=True).str.title()))
     pts = []
     for i in range(1200):
         x, y = rpt(0.9)
         kv = rng.choice(["230000;44000", "115000;27600", "44000;13800", None], p=[.15, .2, .45, .2])
-        t = {"power": "substation", "name": f"Test TS {i}"}
+        t = {"power": "substation", "name": real_names[i % len(real_names)] if i % 3 else f"Test TS {i}"}
         if kv:
             t["voltage"] = kv
         pts.append({"type": "node", "id": i, "lat": y, "lon": x, "tags": t})

@@ -8,3 +8,4 @@ scipy>=1.11
 requests>=2.31
 pyyaml>=6.0
 ijson>=3.2
+pdfplumber>=0.11

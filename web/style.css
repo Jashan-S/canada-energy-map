@@ -104,3 +104,6 @@ button.link { border: 0; background: none; color: var(--accent); font: inherit; 
 
 #zone-note { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 4;
   background: #1d2433; color: #fff; font-size: 12.5px; padding: 6px 12px; border-radius: 14px; }
+.mini { margin: 8px 0 4px; font-size: 11.5px; color: var(--muted); }
+#size button { padding: 5px 4px; font-weight: 600; }
+.leg-src { white-space: normal !important; font-size: 11px; }

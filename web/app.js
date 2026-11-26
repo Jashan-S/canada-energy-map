@@ -47,8 +47,8 @@
     profile: "dist",
     w: { grid: 50, land: 25, load: 15, price: 10 },
     excl: new Set(["PROTECTED", "PSW", "SPECIALTY", "RESERVE"]),
-    minScore: 40, maxCov: 25, maxBldg: 150,
-    layers: { hex: true, faint: true, excluded: true, lines: true, subs: true, plants: false, outside: false },
+    minScore: 40, maxCov: 25, maxBldg: 150, sizeMW: 5,
+    layers: { hex: true, faint: true, excluded: true, lines: true, subs: true, plants: false, outside: false, capcolor: true },
   };
 
   let D, N, score, sub, hstate, reason, shown, ranked, overlay, map, meta, selected = -1, centers, dTor;
@@ -69,7 +69,7 @@
     const hasPrice = meta.price && meta.price.max > meta.price.min;
     const pMin = hasPrice ? meta.price.min : 0, pRange = hasPrice ? meta.price.max - meta.price.min : 1;
     const wsum = w.grid + w.land + w.load + (hasPrice ? w.price : 0) || 1;
-    const ex = state.excl, hasBldg = !meta.missing_layers.includes("buildings");
+    const ex = state.excl, hasBldg = !meta.missing_layers.includes("buildings"), hasCap = !!meta.capacity;
     const show = [], rank = [];
     for (let i = 0; i < N; i++) {
       const fl = c.flags[i];
@@ -85,7 +85,15 @@
       if (r) { score[i] = -1; hstate[i] = S_EXCL; if (state.layers.excluded) show.push(i); continue; }
 
       let g = 0;
-      for (const [k, dk, share] of P.grid) g += share * decay(c[k][i], dk);
+      const capK = "d_cap" + state.sizeMW;
+      if (state.profile === "dist" && hasCap && c[capK]) {
+        // distribution BESS: substation + line proximity + distance to a Hydro One station with room for the project
+        g = 0.45 * decay(c.d_sub[i], 3) + 0.2 * decay(c.d_line[i], 1) + 0.35 * decay(c[capK][i], 4);
+      } else {
+        for (const [k, dk, share] of P.grid) g += share * decay(c[k][i], dk);
+      }
+      const ci = c.cap ? c.cap[i] : -1;
+      if (ci >= 0 && D.cap_subs[ci].tc && state.profile !== "dc") g *= 0.7;   // Hydro One transmission-constrained area
       let land = 1;
       const cli = c.cli[i];
       if (cli >= 1 && cli <= 3) land *= 1 - P.pen.primeAg;
@@ -196,6 +204,8 @@
     const cli = c.cli[i];
     if (cli) tags.push(`<span class="${cli <= 3 ? "bad" : ""}">${cli === 8 ? "Organic soil" : "CLI class " + cli}${cli <= 3 ? " (prime ag – AIA needed)" : ""}</span>`);
     if (c.bldg_cov && c.bldg_cov[i] != null && c.bldg_cov[i] > BLDG_FREE_PCT) tags.push(`<span>${c.bldg_cov[i]}% covered by buildings</span>`);
+    const cs = c.cap && c.cap[i] >= 0 ? D.cap_subs[c.cap[i]] : null;
+    if (cs && cs.tc) tags.push(`<span class="bad">Transmission-constrained area (Hydro One TC)</span>`);
     if (muni && muni.stance) tags.push(`<span class="${muni.stance === "opposed" ? "bad" : muni.stance === "supportive" ? "good" : ""}">Council: ${esc(muni.stance)}</span>`);
     const bar = (v) => `<div class="bar"><i style="width:${(v * 100).toFixed(0)}%"></i></div>`;
     const f = (v, u = " km") => (v == null || v < 0 ? "—" : v + u);
@@ -217,6 +227,9 @@
         <tr><td>Nearest ≥230 kV station</td><td>${stn(s230)}</td></tr>
         <tr><td>Distance to ≥230 kV station</td><td>${f(c.d_sub_230[i])}</td></tr>
         <tr><td>Distance to any substation</td><td>${f(c.d_sub[i])}</td></tr>
+        ${meta.capacity ? `<tr><td>Nearest Hydro One listed station</td><td>${cs ? esc(cs.site) : "none within 15 km"}</td></tr>
+        ${cs ? `<tr><td>Its generation room: best bus / station</td><td>${cs.tc ? "TC (none)" : cs.best + " / " + cs.total + " MW"}</td></tr>` : ""}
+        <tr><td>Distance to station with ≥${state.sizeMW} MW room</td><td>${f(c["d_cap" + state.sizeMW] && c["d_cap" + state.sizeMW][i])}</td></tr>` : ""}
         <tr><td>Distance to ≥115 / ≥230 kV line</td><td>${f(c.d_line_hv[i], "")} / ${f(c.d_line_230[i])}</td></tr>
         <tr><td>Building coverage · count</td><td>${f(c.bldg_cov[i], "%")} · ${f(c.bldg_n[i], "")}</td></tr>
         <tr><td>Industrial land within 5 km</td><td>${f(c.ind_ha[i], " ha")}</td></tr>
@@ -276,8 +289,10 @@
       map.on("click", id, (e) => {
         const p = e.features[0].properties;
         const where = p.j ? ` · ${esc(p.j)}` : "";
+        const capTxt = p.cap_tc === true || p.cap_tc === "true" ? "<br>Hydro One: transmission-constrained (TC)"
+          : p.cap_best != null && p.cap_best !== "null" ? `<br>Hydro One generation room: ${p.cap_best} MW best bus · ${p.cap_total} MW station` : "";
         const html = id === "subs"
-          ? `<b>${esc(p.name || "Substation")}</b><br>${p.kv && p.kv !== "null" ? p.kv + " kV" : "voltage not tagged"}${p.hv === true || p.hv === "true" ? " · treated as ≥115 kV" : ""}${where}${p.operator ? "<br>" + esc(p.operator) : ""}`
+          ? `<b>${esc(p.name || "Substation")}</b><br>${p.kv && p.kv !== "null" ? p.kv + " kV" : "voltage not tagged"}${p.hv === true || p.hv === "true" ? " · treated as ≥115 kV" : ""}${where}${p.operator ? "<br>" + esc(p.operator) : ""}${capTxt}`
           : `<b>${esc(p.name || "Generating station")}</b><br>${esc(p.source || "")} ${p.mw && p.mw !== "null" ? "· " + p.mw + " MW" : ""}${where}`;
         new maplibregl.Popup({ closeButton: false }).setLngLat(e.lngLat).setHTML(html).addTo(map);
       });
@@ -297,6 +312,13 @@
     map.setFilter("lines-other", scope ? ["all", ["<", kv, 115], scope] : ["<", kv, 115]);
     map.setFilter("lines-hv", scope ? ["all", [">=", kv, 115], scope] : [">=", kv, 115]);
     map.setFilter("subs", scope);
+    const hv = ["case", ["get", "hv"], "#111827", "#9aa0a9"];
+    const room = ["case",
+      ["==", ["get", "cap_tc"], true], "#d92d20",
+      ["==", ["typeof", ["get", "cap_best"]], "number"],
+      ["step", ["get", "cap_best"], "#d92d20", 2, "#f79009", 10, "#12b76a"],
+      hv];
+    map.setPaintProperty("subs", "circle-color", state.layers.capcolor && meta.capacity ? room : hv);
     map.setFilter("plants", scope);
   }
 
@@ -317,6 +339,14 @@
     bindSlider($("#minscore"), (v) => (state.minScore = v));
     bindSlider($("#maxcov"), (v) => (state.maxCov = v));
     bindSlider($("#maxbldg"), (v) => (state.maxBldg = v));
+    document.querySelectorAll("#size button").forEach((b) => (b.onclick = () => {
+      document.querySelectorAll("#size button").forEach((x) => x.classList.toggle("on", x === b));
+      state.sizeMW = +b.dataset.mw; update();
+    }));
+    const syncSize = () => ($("#size-row").hidden = !(meta.capacity && state.profile === "dist"));
+    syncSize();
+    document.querySelectorAll("#profile button").forEach((b) => b.addEventListener("click", syncSize));
+    if (!meta.capacity) $("#cap-leg").hidden = true;
     document.querySelectorAll("#excl input").forEach((cb) => (cb.onchange = () => {
       cb.checked ? state.excl.add(cb.dataset.x) : state.excl.delete(cb.dataset.x); update();
     }));
